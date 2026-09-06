@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { SessionBootstrap } from '../components/SessionBootstrap';
 
 export const metadata: Metadata = {
   title: 'Dira | Procurement engine',
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><SessionBootstrap />{children}</body>
     </html>
   );
 }
