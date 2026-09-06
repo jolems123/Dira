@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Sidebar } from '../../components/Sidebar';
 import { TopBar } from '../../components/TopBar';
 import { ApiError, apiFetch, formatDate, formatMoney, statusTone } from '../../lib/api';
+import { AttachmentUpload } from '../../components/AttachmentUpload';
 
 type Payment = { id: string; amount: string; currency: string; reference: string | null; paidAt: string | null; paymentMethod: string };
 
@@ -131,6 +132,7 @@ export default function InvoicesPage() {
                 const outstanding = Number(invoice.total) - paid;
                 return (
                   <article key={invoice.id} className="card p-5">
+                    <AttachmentUpload entityType="INVOICE" entityId={invoice.id} documentType="INVOICE" label="Invoice document" />
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h2 className="text-lg font-semibold text-slate-900">Invoice {invoice.invoiceNumber}</h2>
@@ -193,6 +195,7 @@ export default function InvoicesPage() {
                             <span className="text-xs text-slate-500">
                               {payment.reference} · {payment.paymentMethod} · {formatDate(payment.paidAt)}
                             </span>
+                            <AttachmentUpload entityType="PAYMENT" entityId={payment.id} documentType="PAYMENT_EVIDENCE" label="Payment evidence" />
                           </div>
                         ))}
                       </div>

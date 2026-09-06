@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { AttachmentUpload } from '../../components/AttachmentUpload';
 
 type RFQ = {
   id: string;
@@ -216,6 +217,7 @@ export default function QuotesPage() {
                 <span className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600">{quote.status}</span>
               )}
             </div>
+            <AttachmentUpload entityType="QUOTATION" entityId={quote.id} documentType="QUOTE" label="Supporting quotation document" />
           </div>
         ))}
       </div>

@@ -142,6 +142,7 @@ model User {
   refreshTokens     RefreshToken[]
   auditLogs         AuditLog[]
   sentMessages      Message[]
+  uploadedDocuments Document[] @relation("DocumentUploader")
 }
 
 model Organization {
@@ -172,6 +173,7 @@ model Organization {
   purchaseOrdersAsSupplier PurchaseOrder[] @relation("SupplierPurchaseOrders")
   invoicesAsBuyer    Invoice[] @relation("BuyerOrganizationInvoices")
   invoicesAsSupplier Invoice[] @relation("SupplierOrganizationInvoices")
+  documents          Document[]
 }
 
 model OrganizationMember {
@@ -499,6 +501,27 @@ model PaymentRecord {
   invoice         Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@unique([invoiceId, reference])
+}
+
+model Document {
+  id                String   @id @default(uuid())
+  organizationId    String
+  uploadedByUserId  String
+  entityType        String
+  entityId          String
+  documentType      String
+  originalFilename  String
+  storageKey        String   @unique
+  mimeType          String
+  sizeBytes         Int
+  checksum          String
+  createdAt         DateTime @default(now())
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy        User @relation("DocumentUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, entityType, entityId])
+  @@index([entityId, documentType])
+  @@index([checksum])
 }
 
 model SupplierVerification {

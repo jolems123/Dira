@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Sidebar } from '../../components/Sidebar';
 import { TopBar } from '../../components/TopBar';
 import { ApiError, apiFetch, formatDate, formatMoney, statusTone } from '../../lib/api';
+import { AttachmentUpload } from '../../components/AttachmentUpload';
 
 type OrderItem = {
   id: string;
@@ -166,6 +167,10 @@ export default function OrdersPage() {
                           {selected.supplier?.legalName ?? '—'} · issued {formatDate(selected.issuedAt)}
                         </p>
                       </div>
+                      <AttachmentUpload entityType="PURCHASE_ORDER" entityId={selected.id} documentType="DELIVERY_NOTE" label="Purchase order documents" />
+                      {selected.deliveries.map((delivery) => (
+                        <AttachmentUpload key={delivery.id} entityType="DELIVERY" entityId={delivery.id} documentType={delivery.kind === 'RECEIPT' ? 'RECEIPT_EVIDENCE' : 'DELIVERY_NOTE'} label={`${delivery.kind === 'RECEIPT' ? 'Goods receipt evidence' : 'Dispatch note'} · ${delivery.reference ?? 'delivery'}`} />
+                      ))}
                       <span className={`badge ${statusTone(selected.status)}`}>{selected.status}</span>
                     </div>
                     <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">

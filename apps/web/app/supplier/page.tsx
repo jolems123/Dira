@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Sidebar } from '../../components/Sidebar';
 import { TopBar } from '../../components/TopBar';
 import { ApiError, apiFetch, formatDate, formatMoney, statusTone } from '../../lib/api';
+import { AttachmentUpload } from '../../components/AttachmentUpload';
 
 type SupplierDashboard = {
   openRfqs: number;
@@ -145,6 +146,7 @@ export default function SupplierPortalPage() {
                             <span className={`badge ${statusTone(row.rfq.status)}`}>{row.rfq.status}</span>
                           )}
                         </div>
+                        {row.myQuotation && <AttachmentUpload entityType="QUOTATION" entityId={row.myQuotation.id} documentType="QUOTE" label="Quote attachment" />}
                       </div>
                     ))}
                   </div>
