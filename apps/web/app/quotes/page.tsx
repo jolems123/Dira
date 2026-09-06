@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AttachmentUpload } from '../../components/AttachmentUpload';
+import { getToken } from '../../lib/api';
 
 type RFQ = {
   id: string;
@@ -48,7 +49,7 @@ export default function QuotesPage() {
   );
 
   useEffect(() => {
-    const token = window.localStorage.getItem('dira_access_token');
+    const token = getToken();
     if (!token) {
       setError('Sign in to review quotes.');
       setLoading(false);
@@ -77,7 +78,7 @@ export default function QuotesPage() {
       return;
     }
 
-    const token = window.localStorage.getItem('dira_access_token');
+    const token = getToken();
     if (!token) return;
 
     setLoadingQuotes(true);
@@ -94,7 +95,7 @@ export default function QuotesPage() {
   }, [apiUrl, selectedRfqId]);
 
   async function awardQuote(quoteId: string) {
-    const token = window.localStorage.getItem('dira_access_token');
+    const token = getToken();
     if (!token) {
       setError('Sign in to continue.');
       return;

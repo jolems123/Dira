@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { setToken } from '../../lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -28,13 +29,13 @@ export default function RegisterPage() {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'}/api/v1/auth/register`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.message ?? 'Unable to create account');
-      window.localStorage.setItem('dira_access_token', body.accessToken);
-      window.localStorage.setItem('dira_refresh_token', body.refreshToken);
+      setToken(body.accessToken);
       router.push('/');
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : 'Unable to create account');

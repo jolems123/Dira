@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { getToken } from '../../lib/api';
 
 type PurchaseRequest = {
   id: string;
@@ -20,7 +21,7 @@ export default function PurchaseRequestsPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
   async function loadRequests() {
-    const token = window.localStorage.getItem('dira_access_token');
+    const token = getToken();
     if (!token) {
       setError('Sign in to load purchase requests.');
       setLoading(false);
@@ -36,7 +37,7 @@ export default function PurchaseRequestsPage() {
   }
 
   async function runAction(id: string, action: 'submit' | 'approve') {
-    const token = window.localStorage.getItem('dira_access_token');
+    const token = getToken();
     if (!token) {
       setError('Sign in to continue.');
       return;

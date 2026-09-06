@@ -633,7 +633,7 @@ model AuditLog {
 model RefreshToken {
   id        String @id @default(uuid())
   userId    String
-  token     String @unique
+  tokenHash  String @unique
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime @default(now())

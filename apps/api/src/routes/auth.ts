@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { Router } from 'express';
+import { Request, Response, Router } from 'express';
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
@@ -27,6 +27,21 @@ function tokens(userId: string) {
   const accessToken = jwt.sign({ sub: userId }, env.jwtAccessSecret, { expiresIn: '15m' });
   const refreshToken = crypto.randomBytes(48).toString('hex');
   return { accessToken, refreshToken };
+}
+
+function hashToken(token: string) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+function setRefreshCookie(res: Response, token: string) {
+  const secure = env.nodeEnv === 'production' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', `dira_refresh_token=${token}; HttpOnly; Path=/api/v1/auth; Max-Age=604800; SameSite=Lax${secure}`);
+}
+
+function refreshTokenFromRequest(req: Request) {
+  const cookieHeader = typeof req.headers.cookie === 'string' ? req.headers.cookie : '';
+  const cookie = cookieHeader.split(';').map((part) => part.trim()).find((part) => part.startsWith('dira_refresh_token='));
+  return cookie ? decodeURIComponent(cookie.slice('dira_refresh_token='.length)) : (typeof req.body?.refreshToken === 'string' ? req.body.refreshToken : undefined);
 }
 
 export const authRouter = Router();
@@ -57,8 +72,9 @@ authRouter.post('/register', async (req, res, next) => {
       return { user, membership };
     });
     const issued = tokens(result.user.id);
-    await prisma.refreshToken.create({ data: { userId: result.user.id, token: issued.refreshToken, expiresAt: new Date(Date.now() + 7 * 86400000) } });
-    return res.status(201).json({ ...issued, user: publicUser(result.user, result.membership) });
+    await prisma.refreshToken.create({ data: { userId: result.user.id, tokenHash: hashToken(issued.refreshToken), expiresAt: new Date(Date.now() + 7 * 86400000) } });
+    setRefreshCookie(res, issued.refreshToken);
+    return res.status(201).json({ accessToken: issued.accessToken, user: publicUser(result.user, result.membership) });
   } catch (error) {
     return next(error);
   }
@@ -73,30 +89,33 @@ authRouter.post('/login', async (req, res, next) => {
     if (user.status !== 'ACTIVE') return res.status(403).json({ message: 'Account is not active' });
     const issued = tokens(user.id);
     await prisma.$transaction([
-      prisma.refreshToken.create({ data: { userId: user.id, token: issued.refreshToken, expiresAt: new Date(Date.now() + 7 * 86400000) } }),
+      prisma.refreshToken.create({ data: { userId: user.id, tokenHash: hashToken(issued.refreshToken), expiresAt: new Date(Date.now() + 7 * 86400000) } }),
       prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }),
     ]);
-    return res.json({ ...issued, user: publicUser(user, user.organizationMembers[0]) });
+    setRefreshCookie(res, issued.refreshToken);
+    return res.json({ accessToken: issued.accessToken, user: publicUser(user, user.organizationMembers[0]) });
   } catch (error) {
     return next(error);
   }
 });
 
 authRouter.post('/refresh', async (req, res) => {
-  const token = z.string().safeParse(req.body?.refreshToken);
+  const token = z.string().safeParse(refreshTokenFromRequest(req));
   if (!token.success) return res.status(400).json({ message: 'Refresh token is required' });
-  const stored = await prisma.refreshToken.findUnique({ where: { token: token.data } });
+  const stored = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(token.data) } });
   if (!stored || stored.revokedAt || stored.expiresAt <= new Date()) return res.status(401).json({ message: 'Refresh token is invalid' });
   const issued = tokens(stored.userId);
   await prisma.$transaction([
     prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } }),
-    prisma.refreshToken.create({ data: { userId: stored.userId, token: issued.refreshToken, expiresAt: new Date(Date.now() + 7 * 86400000) } }),
+    prisma.refreshToken.create({ data: { userId: stored.userId, tokenHash: hashToken(issued.refreshToken), expiresAt: new Date(Date.now() + 7 * 86400000) } }),
   ]);
-  return res.json(issued);
+  setRefreshCookie(res, issued.refreshToken);
+  return res.json({ accessToken: issued.accessToken });
 });
 
 authRouter.post('/logout', requireAuth, async (req: AuthenticatedRequest, res) => {
   await prisma.refreshToken.updateMany({ where: { userId: req.user!.id, revokedAt: null }, data: { revokedAt: new Date() } });
+  res.setHeader('Set-Cookie', 'dira_refresh_token=; HttpOnly; Path=/api/v1/auth; Max-Age=0; SameSite=Lax');
   return res.status(204).send();
 });
 

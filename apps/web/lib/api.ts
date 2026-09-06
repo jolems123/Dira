@@ -1,8 +1,27 @@
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
+let accessToken: string | null = null;
+let refreshPromise: Promise<string | null> | null = null;
+
 export function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem('dira_access_token');
+  return accessToken;
+}
+
+export function setToken(token: string | null) {
+  accessToken = token;
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = fetch(`${API_BASE}/api/v1/auth/refresh`, { method: 'POST', credentials: 'include' })
+    .then(async (response) => {
+      if (!response.ok) return null;
+      const body = await response.json() as { accessToken?: string };
+      accessToken = body.accessToken ?? null;
+      return accessToken;
+    })
+    .finally(() => { refreshPromise = null; });
+  return refreshPromise;
 }
 
 export class ApiError extends Error {
@@ -12,11 +31,13 @@ export class ApiError extends Error {
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
+  let token = getToken();
+  if (!token) token = await refreshAccessToken();
   if (!token) throw new ApiError('Sign in to view your procurement workspace.', 401);
 
   const response = await fetch(`${API_BASE}/api/v1${path}`, {
     ...init,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(init.headers ?? {}),
@@ -26,6 +47,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   const text = await response.text();
   const body = text ? JSON.parse(text) : null;
+  if (response.status === 401 && !path.startsWith('/auth/')) {
+    token = await refreshAccessToken();
+    if (token) return apiFetch<T>(path, init);
+  }
   if (!response.ok) {
     throw new ApiError(body?.message ?? `Request failed (${response.status})`, response.status);
   }

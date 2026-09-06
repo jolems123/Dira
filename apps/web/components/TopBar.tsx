@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Bell, LogOut, Search, Plus, Menu, Sparkles } from 'lucide-react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, setToken } from '../lib/api';
 
 type Identity = {
   user: { firstName?: string; lastName?: string; email: string; role?: string };
@@ -23,7 +23,7 @@ export function TopBar() {
 
   function signOut() {
     apiFetch('/auth/logout', { method: 'POST' }).catch(() => undefined);
-    window.localStorage.removeItem('dira_access_token');
+    setToken(null);
     router.push('/login');
   }
 

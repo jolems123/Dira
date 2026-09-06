@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { API_BASE, getToken } from '../../lib/api';
 
 type RFQ = {
   id: string;
@@ -45,7 +46,7 @@ export default function RFQsPage() {
   );
 
   async function loadData() {
-    const token = window.localStorage.getItem('dira_access_token');
+    const token = getToken();
     if (!token) {
       setError('Sign in to load RFQs.');
       setLoading(false);
@@ -80,7 +81,7 @@ export default function RFQsPage() {
 
   async function createRfq(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const token = window.localStorage.getItem('dira_access_token');
+    const token = getToken();
     if (!token) {
       setError('Sign in to continue.');
       return;
@@ -129,7 +130,7 @@ export default function RFQsPage() {
   }
 
   async function publishRfq(id: string) {
-    const token = window.localStorage.getItem('dira_access_token');
+    const token = getToken();
     if (!token) {
       setError('Sign in to continue.');
       return;

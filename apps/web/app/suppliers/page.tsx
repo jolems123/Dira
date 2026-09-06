@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { getToken } from '../../lib/api';
 
 type Supplier = {
   id: string;
@@ -17,7 +18,7 @@ export default function SuppliersPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = window.localStorage.getItem('dira_access_token');
+    const token = getToken();
     if (!token) {
       setError('Sign in to load suppliers.');
       setLoading(false);
