@@ -13,6 +13,7 @@ const registerSchema = z.object({
   email: z.string().email().transform((value) => value.toLowerCase()),
   password: z.string().min(8),
   organizationName: z.string().min(2).optional(),
+  organizationType: z.enum(['BUYER', 'SUPPLIER', 'BOTH']).default('BUYER'),
 });
 const loginSchema = z.object({ email: z.string().email().transform((value) => value.toLowerCase()), password: z.string().min(8) });
 
@@ -37,10 +38,20 @@ authRouter.post('/register', async (req, res, next) => {
       const user = await tx.user.create({
         data: { firstName: parsed.data.firstName, lastName: parsed.data.lastName, email: parsed.data.email, passwordHash, status: 'ACTIVE', emailVerified: false },
       });
+      const organizationType = parsed.data.organizationType;
       const organization = await tx.organization.create({
-        data: { legalName: parsed.data.organizationName ?? `${parsed.data.firstName}'s Organization`, type: 'BUYER' },
+        data: {
+          legalName: parsed.data.organizationName ?? `${parsed.data.firstName}'s Organization`,
+          type: organizationType,
+        },
       });
-      const membership = await tx.organizationMember.create({ data: { organizationId: organization.id, userId: user.id, role: 'OWNER' } });
+      const membership = await tx.organizationMember.create({
+        data: {
+          organizationId: organization.id,
+          userId: user.id,
+          role: organizationType === 'SUPPLIER' || organizationType === 'BOTH' ? 'SUPPLIER_MANAGER' : 'OWNER',
+        },
+      });
       return { user, membership };
     });
     const issued = tokens(result.user.id);
@@ -88,9 +99,18 @@ authRouter.post('/logout', requireAuth, async (req: AuthenticatedRequest, res) =
 });
 
 authRouter.get('/me', requireAuth, async (req: AuthenticatedRequest, res) => {
-  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, include: { organizationMembers: { take: 1 } } });
+  const user = await prisma.user.findUnique({
+    where: { id: req.user!.id },
+    include: { organizationMembers: { take: 1, include: { organization: true } } },
+  });
   if (!user) return res.status(404).json({ message: 'User not found' });
-  return res.json({ user: publicUser(user, user.organizationMembers[0]) });
+  const membership = user.organizationMembers[0];
+  return res.json({
+    user: publicUser(user, membership),
+    organization: membership
+      ? { id: membership.organization.id, name: membership.organization.legalName, type: membership.organization.type }
+      : null,
+  });
 });
 
 authRouter.post('/forgot-password', (_req, res) => res.json({ message: 'If the account exists, reset instructions will be sent.' }));

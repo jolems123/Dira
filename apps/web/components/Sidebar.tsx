@@ -1,26 +1,41 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, BriefcaseBusiness, Building2, FileCheck2, HandCoins, Home, PackageCheck, PackageSearch, ReceiptText, Settings, ShieldCheck, Users, Warehouse, HelpCircle, UserCircle } from 'lucide-react';
+import { BarChart3, BriefcaseBusiness, Building2, FileCheck2, Home, PackageCheck, PackageSearch, ReceiptText, ShieldCheck, Warehouse } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
-const items = [
+const buyerItems = [
   { label: 'Home', href: '/', icon: Home },
   { label: 'Purchase Requests', href: '/purchase-requests', icon: BriefcaseBusiness },
   { label: 'RFQs', href: '/rfqs', icon: PackageSearch },
-  { label: 'Quotes', href: '/rfqs', icon: ReceiptText },
-  { label: 'Orders', href: '/orders', icon: PackageCheck },
-  { label: 'Deliveries', href: '/orders', icon: Warehouse },
-  { label: 'Invoices', href: '/orders', icon: FileCheck2 },
+  { label: 'Quotes', href: '/quotes', icon: ReceiptText },
+  { label: 'Orders & deliveries', href: '/orders', icon: PackageCheck },
+  { label: 'Invoices', href: '/invoices', icon: FileCheck2 },
+  { label: 'Exceptions', href: '/exceptions', icon: ShieldCheck },
   { label: 'Suppliers', href: '/suppliers', icon: Building2 },
   { label: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { label: 'Team', href: '/', icon: Users },
-  { label: 'Company', href: '/', icon: HandCoins },
-  { label: 'Settings', href: '/', icon: Settings },
-  { label: 'Help', href: '/', icon: HelpCircle },
-  { label: 'Profile', href: '/', icon: UserCircle },
+];
+
+const supplierItems = [
+  { label: 'Supplier portal', href: '/supplier', icon: Warehouse },
+  { label: 'Quotes', href: '/quotes', icon: ReceiptText },
+  { label: 'Orders & deliveries', href: '/orders', icon: PackageCheck },
+  { label: 'Invoices', href: '/invoices', icon: FileCheck2 },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [isSupplier, setIsSupplier] = useState(false);
+
+  useEffect(() => {
+    apiFetch<{ organization: { type: string } | null }>('/auth/me')
+      .then((data) => setIsSupplier(data.organization?.type === 'SUPPLIER'))
+      .catch(() => setIsSupplier(false));
+  }, []);
+
+  const items = isSupplier ? supplierItems : buyerItems;
 
   return (
     <aside className="hidden min-h-screen w-72 border-r border-slate-200 bg-slate-50 p-5 lg:block">

@@ -35,6 +35,7 @@ enum Role {
   APPROVER
   PROCUREMENT
   FINANCE
+  RECEIVER
   SUPPLIER_MANAGER
   VIEWER
 }
@@ -63,7 +64,9 @@ enum QuoteStatus {
   DRAFT
   SUBMITTED
   VIEWED
+  REVISED
   ACCEPTED
+  AWARDED
   REJECTED
   WITHDRAWN
   EXPIRED
@@ -72,12 +75,15 @@ enum QuoteStatus {
 enum PurchaseOrderStatus {
   DRAFT
   SENT
+  ISSUED
   ACCEPTED
+  ACKNOWLEDGED
   PROCESSING
   DISPATCHED
   PARTIALLY_DELIVERED
   DELIVERED
   COMPLETED
+  CLOSED
   CANCELLED
 }
 
@@ -89,15 +95,24 @@ enum DeliveryStatus {
   REJECTED
 }
 
+enum DeliveryKind {
+  DISPATCH
+  RECEIPT
+}
+
 enum InvoiceStatus {
   RECEIVED
+  SUBMITTED
+  UNDER_REVIEW
   VERIFIED
   APPROVED
+  REJECTED
   DUE
   PARTIALLY_PAID
   PAID
   OVERDUE
   DISPUTED
+  VOID
   CANCELLED
 }
 
@@ -153,6 +168,8 @@ model Organization {
   purchaseRequests   PurchaseRequest[]
   rfqs               RFQ[]
   quotations         Quotation[]
+  purchaseOrdersAsBuyer    PurchaseOrder[] @relation("BuyerPurchaseOrders")
+  purchaseOrdersAsSupplier PurchaseOrder[] @relation("SupplierPurchaseOrders")
   invoicesAsBuyer    Invoice[] @relation("BuyerOrganizationInvoices")
   invoicesAsSupplier Invoice[] @relation("SupplierOrganizationInvoices")
 }
@@ -284,6 +301,8 @@ model RFQ {
   purchaseRequest  PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
   items            RFQItem[]
   suppliers        RFQSupplier[]
+  quotations       Quotation[]
+  purchaseOrders   PurchaseOrder[]
 }
 
 model RFQItem {
@@ -294,7 +313,6 @@ model RFQItem {
   unit        String?
   rfq         RFQ @relation(fields: [rfqId], references: [id], onDelete: Cascade)
 }
-
 model RFQSupplier {
   id           String @id @default(uuid())
   rfqId        String
@@ -323,9 +341,18 @@ model Quotation {
   notes               String?
   status              QuoteStatus @default(DRAFT)
   submittedAt         DateTime?
+  revisedAt           DateTime?
+  awardedAt           DateTime?
+  awardedBy           String?
+  awardReason         String?
   createdAt           DateTime @default(now())
   organization        Organization @relation(fields: [supplierOrganizationId], references: [id], onDelete: Cascade)
+  rfq                 RFQ @relation(fields: [rfqId], references: [id], onDelete: Cascade)
   items               QuotationItem[]
+  purchaseOrders      PurchaseOrder[]
+
+  @@index([rfqId])
+  @@index([supplierOrganizationId])
 }
 
 model QuotationItem {
@@ -353,11 +380,24 @@ model PurchaseOrder {
   deliveryFee         Decimal @db.Decimal(18,2)
   total               Decimal @db.Decimal(18,2)
   status              PurchaseOrderStatus @default(DRAFT)
+  deliveryAddress     String?
+  paymentTerms        String?
   issuedAt            DateTime?
   acceptedAt          DateTime?
   expectedDeliveryDate DateTime?
+  closedAt            DateTime?
+  closedBy            String?
   createdAt           DateTime @default(now())
+  buyer               Organization @relation("BuyerPurchaseOrders", fields: [buyerOrganizationId], references: [id], onDelete: Cascade)
+  supplier            Organization @relation("SupplierPurchaseOrders", fields: [supplierOrganizationId], references: [id], onDelete: Cascade)
+  rfq                 RFQ? @relation(fields: [rfqId], references: [id])
+  quotation           Quotation? @relation(fields: [quotationId], references: [id])
   items               PurchaseOrderItem[]
+  deliveries          Delivery[]
+  invoices            Invoice[]
+
+  @@index([buyerOrganizationId])
+  @@index([supplierOrganizationId])
 }
 
 model PurchaseOrderItem {
@@ -368,35 +408,45 @@ model PurchaseOrderItem {
   unitPrice       Decimal @db.Decimal(18,2)
   subtotal        Decimal @db.Decimal(18,2)
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  deliveryItems   DeliveryItem[]
+  invoiceItems    InvoiceItem[]
 }
 
 model Delivery {
   id               String @id @default(uuid())
   purchaseOrderId  String
+  kind             DeliveryKind @default(DISPATCH)
   status           DeliveryStatus @default(EXPECTED)
+  dispatchReference String?
   dispatchDate     DateTime?
   expectedDate     DateTime?
   actualDeliveryDate DateTime?
   deliveryNote     String?
+  attachmentKey    String?
   receivedBy       String?
   comments         String?
   createdAt        DateTime @default(now())
+  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   items            DeliveryItem[]
+
+  @@index([purchaseOrderId])
 }
 
 model DeliveryItem {
   id               String @id @default(uuid())
   deliveryId       String
+  purchaseOrderItemId String?
   orderedQuantity  Decimal @db.Decimal(18,2)
   receivedQuantity Decimal @db.Decimal(18,2)
   rejectedQuantity Decimal @db.Decimal(18,2)
   condition        String?
   delivery         Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  purchaseOrderItem PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id])
 }
 
 model Invoice {
   id                    String @id @default(uuid())
-  invoiceNumber          String @unique
+  invoiceNumber          String
   supplierOrganizationId String
   buyerOrganizationId    String
   purchaseOrderId        String?
@@ -404,23 +454,34 @@ model Invoice {
   subtotal               Decimal @db.Decimal(18,2)
   tax                    Decimal @db.Decimal(18,2)
   total                  Decimal @db.Decimal(18,2)
+  invoiceDate            DateTime?
   dueDate                DateTime?
-  status                 InvoiceStatus @default(RECEIVED)
+  status                 InvoiceStatus @default(SUBMITTED)
+  attachmentKey          String?
+  decisionBy             String?
+  decisionAt             DateTime?
+  decisionReason         String?
   createdAt              DateTime @default(now())
   buyer                  Organization @relation("BuyerOrganizationInvoices", fields: [buyerOrganizationId], references: [id], onDelete: Cascade)
   supplier               Organization @relation("SupplierOrganizationInvoices", fields: [supplierOrganizationId], references: [id], onDelete: Cascade)
+  purchaseOrder          PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
   items                  InvoiceItem[]
   paymentRecords         PaymentRecord[]
+
+  @@unique([supplierOrganizationId, invoiceNumber])
+  @@index([buyerOrganizationId])
 }
 
 model InvoiceItem {
   id         String @id @default(uuid())
   invoiceId  String
+  purchaseOrderItemId String?
   description String
   quantity   Decimal @db.Decimal(18,2)
   unitPrice  Decimal @db.Decimal(18,2)
   subtotal   Decimal @db.Decimal(18,2)
   invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  purchaseOrderItem PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id])
 }
 
 model PaymentRecord {
@@ -430,11 +491,14 @@ model PaymentRecord {
   currency        String @default("BWP")
   paymentMethod   PaymentMethod @default(BANK_TRANSFER)
   reference       String?
+  notes           String?
   paidAt          DateTime?
   proofAttachment String?
   recordedBy      String?
   createdAt       DateTime @default(now())
   invoice         Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([invoiceId, reference])
 }
 
 model SupplierVerification {

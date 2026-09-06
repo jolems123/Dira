@@ -1,6 +1,23 @@
+import * as path from 'node:path';
+import * as fs from 'node:fs';
 import * as dotenv from 'dotenv';
 
-dotenv.config();
+/**
+ * The API runs from apps/api but the canonical .env lives at the monorepo root,
+ * so walk upwards until one is found. Existing process env always wins.
+ */
+function loadEnvFiles() {
+  let dir = process.cwd();
+  for (let depth = 0; depth < 5; depth += 1) {
+    const candidate = path.join(dir, '.env');
+    if (fs.existsSync(candidate)) dotenv.config({ path: candidate });
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+}
+
+loadEnvFiles();
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
