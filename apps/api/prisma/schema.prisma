@@ -140,6 +140,7 @@ model User {
   lastLoginAt       DateTime?
   organizationMembers OrganizationMember[]
   refreshTokens     RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
   auditLogs         AuditLog[]
   sentMessages      Message[]
   uploadedDocuments Document[] @relation("DocumentUploader")
@@ -637,6 +638,18 @@ model RefreshToken {
   revokedAt DateTime?
   createdAt DateTime @default(now())
   user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt   DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }
 
 model Attachment {

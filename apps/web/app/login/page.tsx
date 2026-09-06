@@ -8,6 +8,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -44,7 +45,12 @@ export default function LoginPage() {
         <p className="mt-2 text-sm text-slate-600">Sign into your procurement workspace.</p>
         <form className="mt-6 space-y-4" onSubmit={submit}>
           <input required className="w-full rounded-xl border border-slate-200 px-3 py-2" placeholder="Email" value={email} onChange={(event) => setEmail(event.target.value)} />
-          <input required minLength={8} className="w-full rounded-xl border border-slate-200 px-3 py-2" type="password" placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} />
+          <div className="flex gap-2">
+            <input required minLength={8} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2" type={showPassword ? 'text' : 'password'} placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} />
+            <button type="button" onClick={() => setShowPassword((shown) => !shown)} className="rounded-xl border border-slate-200 px-3 text-sm" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
           {error && <p className="text-sm text-red-700">{error}</p>}
           <button disabled={loading} className="w-full rounded-xl bg-navy px-4 py-3 font-medium text-white disabled:opacity-60">{loading ? 'Signing in...' : 'Sign in'}</button>
         </form>

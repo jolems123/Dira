@@ -16,6 +16,8 @@ const registerSchema = z.object({
   organizationType: z.enum(['BUYER', 'SUPPLIER', 'BOTH']).default('BUYER'),
 });
 const loginSchema = z.object({ email: z.string().email().transform((value) => value.toLowerCase()), password: z.string().min(8) });
+const forgotPasswordSchema = z.object({ email: z.string().email().transform((value) => value.toLowerCase()) });
+const resetPasswordSchema = z.object({ token: z.string().min(32), password: z.string().min(8) });
 
 function publicUser(user: { id: string; firstName: string; lastName: string; email: string; status: string }, membership?: { organizationId: string; role: string }) {
   return { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, status: user.status, organizationId: membership?.organizationId, role: membership?.role };
@@ -113,4 +115,41 @@ authRouter.get('/me', requireAuth, async (req: AuthenticatedRequest, res) => {
   });
 });
 
-authRouter.post('/forgot-password', (_req, res) => res.json({ message: 'If the account exists, reset instructions will be sent.' }));
+authRouter.post('/forgot-password', async (req, res, next) => {
+  try {
+    const parsed = forgotPasswordSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: 'Validation failed', errors: parsed.error.flatten() });
+    const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+    let resetToken: string | undefined;
+    if (user && user.status === 'ACTIVE') {
+      resetToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+      await prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
+      await prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + 30 * 60 * 1000) } });
+    }
+    const response: { message: string; resetToken?: string } = { message: 'If the account exists, reset instructions will be sent.' };
+    if (resetToken && env.nodeEnv !== 'production') response.resetToken = resetToken;
+    return res.json(response);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+authRouter.post('/reset-password', async (req, res, next) => {
+  try {
+    const parsed = resetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: 'Validation failed', errors: parsed.error.flatten() });
+    const tokenHash = crypto.createHash('sha256').update(parsed.data.token).digest('hex');
+    const reset = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+    if (!reset || reset.usedAt || reset.expiresAt <= new Date()) return res.status(400).json({ message: 'Reset token is invalid or expired' });
+    const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: reset.userId }, data: { passwordHash } }),
+      prisma.passwordResetToken.update({ where: { id: reset.id }, data: { usedAt: new Date() } }),
+      prisma.refreshToken.updateMany({ where: { userId: reset.userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+    ]);
+    return res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    return next(error);
+  }
+});
