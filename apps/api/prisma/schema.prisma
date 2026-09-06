@@ -1,0 +1,564 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum OrganizationType {
+  BUYER
+  SUPPLIER
+  BOTH
+}
+
+enum VerificationStatus {
+  NOT_SUBMITTED
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  REQUESTER
+  APPROVER
+  PROCUREMENT
+  FINANCE
+  SUPPLIER_MANAGER
+  VIEWER
+}
+
+enum RequestStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  RFQ_CREATED
+  CANCELLED
+}
+
+enum RFQStatus {
+  DRAFT
+  OPEN
+  QUOTES_RECEIVED
+  EVALUATION
+  AWARDED
+  CLOSED
+  EXPIRED
+  CANCELLED
+}
+
+enum QuoteStatus {
+  DRAFT
+  SUBMITTED
+  VIEWED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  PROCESSING
+  DISPATCHED
+  PARTIALLY_DELIVERED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum DeliveryStatus {
+  EXPECTED
+  DISPATCHED
+  PARTIAL
+  DELIVERED
+  REJECTED
+}
+
+enum InvoiceStatus {
+  RECEIVED
+  VERIFIED
+  APPROVED
+  DUE
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  DISPUTED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CHEQUE
+  MOBILE_MONEY
+  CARD
+  OTHER
+}
+
+model User {
+  id                String   @id @default(uuid())
+  firstName         String
+  lastName          String
+  email             String   @unique
+  phone             String?
+  passwordHash      String
+  emailVerified     Boolean  @default(false)
+  phoneVerified     Boolean  @default(false)
+  status            UserStatus @default(PENDING_VERIFICATION)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastLoginAt       DateTime?
+  organizationMembers OrganizationMember[]
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+  sentMessages      Message[]
+}
+
+model Organization {
+  id                 String   @id @default(uuid())
+  legalName          String
+  tradingName        String?
+  registrationNumber String?
+  taxNumber          String?
+  country            String?
+  city               String?
+  industry           String?
+  businessType       String?
+  phone              String?
+  email              String?
+  website            String?
+  logoUrl            String?
+  verificationStatus VerificationStatus @default(NOT_SUBMITTED)
+  type               OrganizationType @default(BUYER)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  members            OrganizationMember[]
+  locations          OrganizationLocation[]
+  categories         SupplierCategory[]
+  purchaseRequests   PurchaseRequest[]
+  rfqs               RFQ[]
+  quotations         Quotation[]
+  invoicesAsBuyer    Invoice[] @relation("BuyerOrganizationInvoices")
+  invoicesAsSupplier Invoice[] @relation("SupplierOrganizationInvoices")
+}
+
+model OrganizationMember {
+  id             String   @id @default(uuid())
+  organizationId String
+  userId         String
+  role           Role     @default(VIEWER)
+  status         String   @default("ACTIVE")
+  createdAt      DateTime @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model OrganizationLocation {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  country        String?
+  city           String?
+  address        String?
+  latitude       Float?
+  longitude      Float?
+  isHeadOffice   Boolean @default(false)
+  createdAt      DateTime @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  supplierCategories SupplierCategory[]
+  purchaseRequestItems PurchaseRequestItem[]
+}
+
+model SupplierCategory {
+  id          String @id @default(uuid())
+  supplierId  String
+  categoryId  String
+  organization Organization @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, categoryId])
+}
+
+model PurchaseRequest {
+  id               String @id @default(uuid())
+  organizationId    String
+  requestNumber    String @unique
+  title            String
+  description      String?
+  requestedBy      String?
+  department       String?
+  locationId       String?
+  requiredBy       DateTime?
+  estimatedBudget  Decimal? @db.Decimal(18,2)
+  currency         String @default("BWP")
+  status           RequestStatus @default(DRAFT)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  submittedAt      DateTime?
+  approvedAt       DateTime?
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items            PurchaseRequestItem[]
+  rfqs             RFQ[]
+  approvalDecisions ApprovalDecision[]
+}
+
+model PurchaseRequestItem {
+  id                 String @id @default(uuid())
+  purchaseRequestId  String
+  categoryId         String?
+  name               String
+  description        String?
+  quantity           Decimal @db.Decimal(18,2)
+  unit               String?
+  estimatedUnitPrice Decimal? @db.Decimal(18,2)
+  specifications     String?
+  purchaseRequest    PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  category           Category? @relation(fields: [categoryId], references: [id])
+}
+
+model ApprovalRule {
+  id            String @id @default(uuid())
+  organizationId String?
+  name          String
+  minAmount     Decimal? @db.Decimal(18,2)
+  maxAmount     Decimal? @db.Decimal(18,2)
+  requiresManager Boolean @default(false)
+  requiresFinance Boolean @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model ApprovalDecision {
+  id               String @id @default(uuid())
+  purchaseRequestId String
+  approverUserId   String?
+  decision         String
+  comment          String?
+  createdAt        DateTime @default(now())
+  purchaseRequest  PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+}
+
+model RFQ {
+  id               String @id @default(uuid())
+  organizationId    String
+  purchaseRequestId String?
+  rfqNumber        String @unique
+  title            String
+  description      String?
+  deliveryLocationId String?
+  requiredBy       DateTime?
+  quoteDeadline    DateTime?
+  budget           Decimal? @db.Decimal(18,2)
+  currency         String @default("BWP")
+  status           RFQStatus @default(DRAFT)
+  createdBy        String?
+  createdAt        DateTime @default(now())
+  publishedAt      DateTime?
+  closedAt         DateTime?
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchaseRequest  PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
+  items            RFQItem[]
+  suppliers        RFQSupplier[]
+}
+
+model RFQItem {
+  id          String @id @default(uuid())
+  rfqId       String
+  name        String
+  quantity    Decimal? @db.Decimal(18,2)
+  unit        String?
+  rfq         RFQ @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+}
+
+model RFQSupplier {
+  id           String @id @default(uuid())
+  rfqId        String
+  supplierId   String
+  invitedAt    DateTime @default(now())
+  viewedAt     DateTime?
+  responseStatus String @default("PENDING")
+  rfq          RFQ @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  @@index([rfqId])
+}
+
+model Quotation {
+  id                  String @id @default(uuid())
+  quoteNumber         String @unique
+  rfqId               String
+  supplierOrganizationId String
+  currency            String @default("BWP")
+  subtotal            Decimal @db.Decimal(18,2)
+  tax                 Decimal @db.Decimal(18,2)
+  deliveryFee         Decimal @db.Decimal(18,2)
+  discount            Decimal @db.Decimal(18,2)
+  total               Decimal @db.Decimal(18,2)
+  deliveryDays        Int?
+  paymentTerms        String?
+  validUntil          DateTime?
+  notes               String?
+  status              QuoteStatus @default(DRAFT)
+  submittedAt         DateTime?
+  createdAt           DateTime @default(now())
+  organization        Organization @relation(fields: [supplierOrganizationId], references: [id], onDelete: Cascade)
+  items               QuotationItem[]
+}
+
+model QuotationItem {
+  id             String @id @default(uuid())
+  quotationId    String
+  rfqItemId      String?
+  quantity       Decimal @db.Decimal(18,2)
+  unitPrice      Decimal @db.Decimal(18,2)
+  subtotal       Decimal @db.Decimal(18,2)
+  availableQuantity Decimal? @db.Decimal(18,2)
+  notes          String?
+  quotation      Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+}
+
+model PurchaseOrder {
+  id                  String @id @default(uuid())
+  poNumber            String @unique
+  buyerOrganizationId String
+  supplierOrganizationId String
+  rfqId               String?
+  quotationId         String?
+  currency            String @default("BWP")
+  subtotal            Decimal @db.Decimal(18,2)
+  tax                 Decimal @db.Decimal(18,2)
+  deliveryFee         Decimal @db.Decimal(18,2)
+  total               Decimal @db.Decimal(18,2)
+  status              PurchaseOrderStatus @default(DRAFT)
+  issuedAt            DateTime?
+  acceptedAt          DateTime?
+  expectedDeliveryDate DateTime?
+  createdAt           DateTime @default(now())
+  items               PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id              String @id @default(uuid())
+  purchaseOrderId String
+  name            String
+  quantity        Decimal @db.Decimal(18,2)
+  unitPrice       Decimal @db.Decimal(18,2)
+  subtotal        Decimal @db.Decimal(18,2)
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+}
+
+model Delivery {
+  id               String @id @default(uuid())
+  purchaseOrderId  String
+  status           DeliveryStatus @default(EXPECTED)
+  dispatchDate     DateTime?
+  expectedDate     DateTime?
+  actualDeliveryDate DateTime?
+  deliveryNote     String?
+  receivedBy       String?
+  comments         String?
+  createdAt        DateTime @default(now())
+  items            DeliveryItem[]
+}
+
+model DeliveryItem {
+  id               String @id @default(uuid())
+  deliveryId       String
+  orderedQuantity  Decimal @db.Decimal(18,2)
+  receivedQuantity Decimal @db.Decimal(18,2)
+  rejectedQuantity Decimal @db.Decimal(18,2)
+  condition        String?
+  delivery         Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id                    String @id @default(uuid())
+  invoiceNumber          String @unique
+  supplierOrganizationId String
+  buyerOrganizationId    String
+  purchaseOrderId        String?
+  currency               String @default("BWP")
+  subtotal               Decimal @db.Decimal(18,2)
+  tax                    Decimal @db.Decimal(18,2)
+  total                  Decimal @db.Decimal(18,2)
+  dueDate                DateTime?
+  status                 InvoiceStatus @default(RECEIVED)
+  createdAt              DateTime @default(now())
+  buyer                  Organization @relation("BuyerOrganizationInvoices", fields: [buyerOrganizationId], references: [id], onDelete: Cascade)
+  supplier               Organization @relation("SupplierOrganizationInvoices", fields: [supplierOrganizationId], references: [id], onDelete: Cascade)
+  items                  InvoiceItem[]
+  paymentRecords         PaymentRecord[]
+}
+
+model InvoiceItem {
+  id         String @id @default(uuid())
+  invoiceId  String
+  description String
+  quantity   Decimal @db.Decimal(18,2)
+  unitPrice  Decimal @db.Decimal(18,2)
+  subtotal   Decimal @db.Decimal(18,2)
+  invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model PaymentRecord {
+  id              String @id @default(uuid())
+  invoiceId       String
+  amount          Decimal @db.Decimal(18,2)
+  currency        String @default("BWP")
+  paymentMethod   PaymentMethod @default(BANK_TRANSFER)
+  reference       String?
+  paidAt          DateTime?
+  proofAttachment String?
+  recordedBy      String?
+  createdAt       DateTime @default(now())
+  invoice         Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model SupplierVerification {
+  id             String @id @default(uuid())
+  organizationId String
+  type           String
+  status         VerificationStatus @default(NOT_SUBMITTED)
+  submittedAt    DateTime?
+  verifiedAt     DateTime?
+  expiresAt      DateTime?
+  reviewedBy     String?
+  reviewNotes    String?
+  createdAt      DateTime @default(now())
+}
+
+model SupplierDocument {
+  id             String @id @default(uuid())
+  organizationId String
+  type           String
+  fileName       String
+  mimeType       String
+  size           Int
+  storageKey     String
+  createdAt      DateTime @default(now())
+}
+
+model SupplierPerformance {
+  id                     String @id @default(uuid())
+  organizationId         String
+  completedOrders        Int @default(0)
+  cancelledOrders        Int @default(0)
+  onTimeDeliveryPercent  Float @default(0)
+  averageResponseTimeMin Int @default(0)
+  quoteResponseRate      Float @default(0)
+  fulfilmentPercent      Float @default(0)
+  rating                Float @default(0)
+  updatedAt             DateTime @updatedAt
+}
+
+model SupplierReview {
+  id                   String @id @default(uuid())
+  organizationId       String
+  supplierOrganizationId String
+  purchaseOrderId      String?
+  rating               Float
+  qualityRating        Float?
+  deliveryRating       Float?
+  communicationRating  Float?
+  comment              String?
+  createdBy            String?
+  createdAt            DateTime @default(now())
+}
+
+model Notification {
+  id          String @id @default(uuid())
+  userId      String?
+  type        String
+  title       String
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model Conversation {
+  id            String @id @default(uuid())
+  contextType   String
+  contextId     String
+  title         String?
+  createdAt     DateTime @default(now())
+  participants  ConversationParticipant[]
+  messages      Message[]
+}
+
+model ConversationParticipant {
+  id            String @id @default(uuid())
+  conversationId String
+  userId        String
+  createdAt     DateTime @default(now())
+  conversation  Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id            String @id @default(uuid())
+  conversationId String
+  senderId      String
+  content       String
+  attachments   String[] @default([])
+  createdAt     DateTime @default(now())
+  conversation  Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender        User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id            String @id @default(uuid())
+  organizationId String?
+  userId        String?
+  action        String
+  entityType    String
+  entityId      String?
+  before        Json?
+  after         Json?
+  metadata      Json?
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+  user          User? @relation(fields: [userId], references: [id])
+}
+
+model RefreshToken {
+  id        String @id @default(uuid())
+  userId    String
+  token     String @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Attachment {
+  id         String @id @default(uuid())
+  ownerType  String
+  ownerId    String
+  fileName   String
+  mimeType   String
+  size       Int
+  storageKey String
+  createdAt  DateTime @default(now())
+}

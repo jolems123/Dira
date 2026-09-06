@@ -1,0 +1,15 @@
+node_modules
+.npm
+.env
+.env.local
+.env.*.local
+.next
+out
+coverage
+prisma/generated
+apps/api/dist
+apps/web/.next
+apps/web/node_modules
+apps/api/node_modules
+.DS_Store
+npm-debug.log*

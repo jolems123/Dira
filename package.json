@@ -1,0 +1,26 @@
+{
+  "name": "dira",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace apps/api\" \"npm run dev --workspace apps/web\"",
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:web": "npm run dev --workspace apps/web",
+    "build": "npm run build --workspace apps/api && npm run build --workspace apps/web",
+    "db:generate": "npm exec prisma generate --workspace apps/api",
+    "db:migrate": "npm exec prisma migrate dev --workspace apps/api -- --name init",
+    "db:seed": "npm exec tsx --workspace apps/api prisma/seed.ts",
+    "docker:up": "docker compose up -d postgres pgadmin",
+    "docker:down": "docker compose down -v",
+    "typecheck": "tsc --noEmit -p apps/api/tsconfig.json && tsc --noEmit -p apps/web/tsconfig.json",
+    "lint": "echo \"No lint configured yet\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1",
+    "typescript": "^5.6.3"
+  }
+}
