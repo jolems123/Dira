@@ -18,7 +18,7 @@ describe('negative and isolation cases', () => {
 
     // Supplier A must not edit or withdraw Supplier B's quote.
     expect((await api().patch(`${BASE}/quotes/${quoteB.id}`).set(auth(supplierA)).send({
-      currency: 'BWP', tax: 0, deliveryFee: 0, discount: 0,
+      currency: 'UGX', tax: 0, deliveryFee: 0, discount: 0,
       items: [{ rfqItemId: 'x', quantity: 1, unitPrice: 1 }],
     })).status).toBe(404);
     expect((await api().post(`${BASE}/quotes/${quoteB.id}/withdraw`).set(auth(supplierA)).send({})).status).toBe(404);
@@ -39,7 +39,7 @@ describe('negative and isolation cases', () => {
       poId: purchaseOrder.id,
       invoiceDate: new Date().toISOString(),
       dueDate: isoDays(30),
-      currency: 'BWP',
+      currency: 'UGX',
       tax: 0,
       items: [{ description: 'x', quantity: 1, unitPrice: 1 }],
     })).status).toBe(404);
@@ -87,19 +87,19 @@ describe('negative and isolation cases', () => {
     const supplier = await registerOrg('SUPPLIER', 'supexp');
 
     const request = expectOk(await api().post(`${BASE}/purchase-requests`).set(auth(buyer)).send({
-      title: 'Expiry scenario', department: 'Ops', currency: 'BWP',
+      title: 'Expiry scenario', department: 'Ops', currency: 'UGX',
       items: [{ name: 'Widget', quantity: 5, estimatedUnitPrice: 100 }],
     }), 'request');
     await api().post(`${BASE}/purchase-requests/${request.id}/submit`).set(auth(buyer)).send({});
     await api().post(`${BASE}/purchase-requests/${request.id}/approve`).set(auth(buyer)).send({});
     const rfq = expectOk(await api().post(`${BASE}/rfqs`).set(auth(buyer)).send({
-      purchaseRequestId: request.id, quoteDeadline: isoDays(5), currency: 'BWP', supplierIds: [supplier.organizationId],
+      purchaseRequestId: request.id, quoteDeadline: isoDays(5), currency: 'UGX', supplierIds: [supplier.organizationId],
     }), 'rfq');
     await api().post(`${BASE}/rfqs/${rfq.id}/publish`).set(auth(buyer)).send({});
 
     const rfqItems = expectOk(await api().get(`${BASE}/rfqs`).set(auth(buyer)), 'rfqs').items.find((item: any) => item.id === rfq.id).items;
     const quote = expectOk(await api().post(`${BASE}/rfqs/${rfq.id}/quotes`).set(auth(supplier)).send({
-      currency: 'BWP', tax: 0, deliveryFee: 0, discount: 0, validUntil: isoDays(1),
+      currency: 'UGX', tax: 0, deliveryFee: 0, discount: 0, validUntil: isoDays(1),
       items: rfqItems.map((item: any) => ({ rfqItemId: item.id, quantity: Number(item.quantity), unitPrice: 100 })),
     }), 'quote');
 
@@ -182,7 +182,7 @@ describe('negative and isolation cases', () => {
       poId: purchaseOrder.id,
       invoiceDate: new Date().toISOString(),
       dueDate: isoDays(30),
-      currency: 'BWP',
+      currency: 'UGX',
       tax: 0,
       items: [{ purchaseOrderItemId: purchaseOrder.items[0].id, description: 'dup', quantity: 1, unitPrice: 10 }],
     });
@@ -206,7 +206,7 @@ describe('negative and isolation cases', () => {
       poId: purchaseOrder.id,
       invoiceDate: new Date().toISOString(),
       dueDate: isoDays(30),
-      currency: 'BWP',
+      currency: 'UGX',
       tax: 0,
       items: purchaseOrder.items.map((item: any) => ({
         purchaseOrderItemId: item.id,
@@ -243,7 +243,7 @@ describe('negative and isolation cases', () => {
     await setRole(buyer, 'FINANCE');
     // Payment before approval must be refused.
     const early = await api().post(`${BASE}/invoices/${invoiceId}/payments`).set(auth(buyer)).send({
-      amount: 1, currency: 'BWP', paymentDate: new Date().toISOString(), paymentMethod: 'BANK_TRANSFER', reference: unique('PAY'),
+      amount: 1, currency: 'UGX', paymentDate: new Date().toISOString(), paymentMethod: 'BANK_TRANSFER', reference: unique('PAY'),
     });
     expect(early.status).toBe(409);
 
@@ -252,7 +252,7 @@ describe('negative and isolation cases', () => {
     const total = Number(invoice.total);
 
     const overpay = await api().post(`${BASE}/invoices/${invoiceId}/payments`).set(auth(buyer)).send({
-      amount: total + 1, currency: 'BWP', paymentDate: new Date().toISOString(), paymentMethod: 'BANK_TRANSFER', reference: unique('PAY'),
+      amount: total + 1, currency: 'UGX', paymentDate: new Date().toISOString(), paymentMethod: 'BANK_TRANSFER', reference: unique('PAY'),
     });
     expect(overpay.status).toBe(400);
 
@@ -263,17 +263,17 @@ describe('negative and isolation cases', () => {
 
     const reference = unique('PAY');
     expectOk(await api().post(`${BASE}/invoices/${invoiceId}/payments`).set(auth(buyer)).send({
-      amount: 10, currency: 'BWP', paymentDate: new Date().toISOString(), paymentMethod: 'BANK_TRANSFER', reference,
+      amount: 10, currency: 'UGX', paymentDate: new Date().toISOString(), paymentMethod: 'BANK_TRANSFER', reference,
     }), 'first payment');
 
     const duplicateReference = await api().post(`${BASE}/invoices/${invoiceId}/payments`).set(auth(buyer)).send({
-      amount: 10, currency: 'BWP', paymentDate: new Date().toISOString(), paymentMethod: 'BANK_TRANSFER', reference,
+      amount: 10, currency: 'UGX', paymentDate: new Date().toISOString(), paymentMethod: 'BANK_TRANSFER', reference,
     });
     expect(duplicateReference.status).toBe(409);
 
     // Cumulative overpayment.
     const cumulative = await api().post(`${BASE}/invoices/${invoiceId}/payments`).set(auth(buyer)).send({
-      amount: total, currency: 'BWP', paymentDate: new Date().toISOString(), paymentMethod: 'BANK_TRANSFER', reference: unique('PAY'),
+      amount: total, currency: 'UGX', paymentDate: new Date().toISOString(), paymentMethod: 'BANK_TRANSFER', reference: unique('PAY'),
     });
     expect(cumulative.status).toBe(400);
 
@@ -300,7 +300,7 @@ describe('negative and isolation cases', () => {
 
     // Revising or withdrawing after award must be refused.
     const revise = await api().patch(`${BASE}/quotes/${quoteB.id}`).set(auth(supplierB)).send({
-      currency: 'BWP', tax: 0, deliveryFee: 0, discount: 0,
+      currency: 'UGX', tax: 0, deliveryFee: 0, discount: 0,
       items: [{ rfqItemId: context.quoteB.items[0].rfqItemId, quantity: 1, unitPrice: 1 }],
     });
     expect(revise.status).toBe(409);
@@ -354,7 +354,7 @@ describe('negative and isolation cases', () => {
     // A supplier must never receive buyer permissions.
     expect((await api().post(`${BASE}/invoices/${invoiceId}/decision`).set(auth(supplierB)).send({ decision: 'APPROVED' })).status).toBe(403);
     expect((await api().post(`${BASE}/invoices/${invoiceId}/payments`).set(auth(supplierB)).send({
-      amount: 1, currency: 'BWP', paymentDate: new Date().toISOString(), paymentMethod: 'BANK_TRANSFER', reference: unique('PAY'),
+      amount: 1, currency: 'UGX', paymentDate: new Date().toISOString(), paymentMethod: 'BANK_TRANSFER', reference: unique('PAY'),
     })).status).toBe(403);
     expect((await api().post(`${BASE}/purchase-orders/${purchaseOrder.id}/closeout`).set(auth(supplierB)).send({})).status).toBe(403);
     expect((await api().get(`${BASE}/exceptions`).set(auth(supplierB))).status).toBe(403);
@@ -366,7 +366,7 @@ describe('negative and isolation cases', () => {
       items: [{ purchaseOrderItemId: purchaseOrder.items[0].id, receivedQuantity: 1, rejectedQuantity: 0 }],
     })).status).toBe(403);
     expect((await api().post(`${BASE}/rfqs`).set(auth(buyer)).send({
-      purchaseRequestId: context.requestId, quoteDeadline: isoDays(5), currency: 'BWP', supplierIds: [supplierB.organizationId],
+      purchaseRequestId: context.requestId, quoteDeadline: isoDays(5), currency: 'UGX', supplierIds: [supplierB.organizationId],
     })).status).toBe(403);
 
     // A buyer must not act as a supplier.

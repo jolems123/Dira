@@ -18,7 +18,7 @@ const requestSchema = z.object({
   title: z.string().min(3),
   description: z.string().optional(),
   department: z.string().min(2),
-  currency: z.string().length(3).default('BWP'),
+  currency: z.string().length(3).default('UGX'),
   requiredBy: z.string().datetime().optional(),
   estimatedBudget: z.number().nonnegative().optional(),
   items: z.array(z.object({
@@ -43,12 +43,12 @@ const createRfqSchema = z.object({
   quoteDeadline: z.string().datetime(),
   requiredBy: z.string().datetime().optional(),
   budget: z.number().nonnegative().optional(),
-  currency: z.string().length(3).default('BWP'),
+  currency: z.string().length(3).default('UGX'),
   supplierIds: z.array(z.string().min(1)).min(1),
 });
 
 const submitQuotationSchema = z.object({
-  currency: z.string().length(3).default('BWP'),
+  currency: z.string().length(3).default('UGX'),
   tax: z.number().nonnegative().default(0),
   deliveryFee: z.number().nonnegative().default(0),
   discount: z.number().nonnegative().default(0),
@@ -106,7 +106,7 @@ const invoiceSchema = z.object({
   poId: z.string().min(1),
   invoiceDate: z.string().datetime(),
   dueDate: z.string().datetime(),
-  currency: z.string().length(3).default('BWP'),
+  currency: z.string().length(3).default('UGX'),
   tax: z.number().nonnegative().default(0),
   items: z.array(z.object({
     purchaseOrderItemId: z.string().min(1).optional(),
@@ -125,7 +125,7 @@ const decisionSchema = z.object({
 
 const paymentSchema = z.object({
   amount: z.number().positive(),
-  currency: z.string().length(3).default('BWP'),
+  currency: z.string().length(3).default('UGX'),
   paymentDate: z.string().datetime(),
   paymentMethod: z.enum(['BANK_TRANSFER', 'CASH', 'CHEQUE', 'MOBILE_MONEY', 'CARD', 'OTHER']),
   reference: z.string().min(1),

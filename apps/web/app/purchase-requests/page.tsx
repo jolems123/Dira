@@ -90,7 +90,7 @@ export default function PurchaseRequestsPage() {
             <p className="mt-2 text-sm text-slate-600">{item.title}</p>
             <div className="mt-3 text-xs text-slate-500">
               <div>{item.department ?? 'Operations'}</div>
-              <div>{item.estimatedBudget ? `${item.currency ?? 'BWP'} ${item.estimatedBudget}` : 'Budget pending'}</div>
+              <div>{item.estimatedBudget ? `${item.currency ?? 'UGX'} ${item.estimatedBudget}` : 'Budget pending'}</div>
             </div>
             <div className="mt-4 flex gap-2">
               {item.status === 'DRAFT' && (

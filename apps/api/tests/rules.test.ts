@@ -5,7 +5,7 @@ import { MAX_UPLOAD_BYTES, resolveStoragePath, validateUpload } from '../src/lib
 const basePo = {
   id: 'po-1',
   poNumber: 'PO-1',
-  currency: 'BWP',
+  currency: 'UGX',
   total: 1000,
   items: [{ id: 'line-1', name: 'Widget', quantity: 10, unitPrice: 100 }],
 };
@@ -17,7 +17,7 @@ function match(overrides: Partial<Parameters<typeof evaluateThreeWayMatch>[0]> =
     invoice: {
       id: 'inv-1',
       invoiceNumber: 'INV-1',
-      currency: 'BWP',
+      currency: 'UGX',
       total: 1000,
       subtotal: 1000,
       tax: 0,
@@ -46,7 +46,7 @@ describe('three-way match rules', () => {
     const result = match({
       receiptItems: [{ purchaseOrderItemId: 'line-1', receivedQuantity: 4, rejectedQuantity: 0 }],
       invoice: {
-        id: 'inv-1', invoiceNumber: 'INV-1', currency: 'BWP', total: 1000, subtotal: 1000, tax: 0,
+        id: 'inv-1', invoiceNumber: 'INV-1', currency: 'UGX', total: 1000, subtotal: 1000, tax: 0,
         items: [{ purchaseOrderItemId: 'line-1', description: 'Widget', quantity: 10, unitPrice: 100 }],
       },
     });
@@ -64,7 +64,7 @@ describe('three-way match rules', () => {
   it('detects a price mismatch', () => {
     const result = match({
       invoice: {
-        id: 'inv-1', invoiceNumber: 'INV-1', currency: 'BWP', total: 1200, subtotal: 1200, tax: 0,
+        id: 'inv-1', invoiceNumber: 'INV-1', currency: 'UGX', total: 1200, subtotal: 1200, tax: 0,
         items: [{ purchaseOrderItemId: 'line-1', description: 'Widget', quantity: 10, unitPrice: 120 }],
       },
     });
@@ -101,7 +101,7 @@ describe('three-way match rules', () => {
   it('detects an invoice subtotal that disagrees with its line items', () => {
     const result = match({
       invoice: {
-        id: 'inv-1', invoiceNumber: 'INV-1', currency: 'BWP', total: 1000, subtotal: 900, tax: 0,
+        id: 'inv-1', invoiceNumber: 'INV-1', currency: 'UGX', total: 1000, subtotal: 900, tax: 0,
         items: [{ purchaseOrderItemId: 'line-1', description: 'Widget', quantity: 10, unitPrice: 100 }],
       },
     });
@@ -111,7 +111,7 @@ describe('three-way match rules', () => {
   it('flags invoice lines not linked to a PO line', () => {
     const result = match({
       invoice: {
-        id: 'inv-1', invoiceNumber: 'INV-1', currency: 'BWP', total: 1000, subtotal: 1000, tax: 0,
+        id: 'inv-1', invoiceNumber: 'INV-1', currency: 'UGX', total: 1000, subtotal: 1000, tax: 0,
         items: [{ purchaseOrderItemId: null, description: 'Mystery fee', quantity: 10, unitPrice: 100 }],
       },
     });

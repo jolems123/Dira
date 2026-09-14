@@ -57,9 +57,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return body as T;
 }
 
-export function formatMoney(value: number | string | null | undefined, currency = 'BWP') {
+export function formatMoney(value: number | string | null | undefined, currency = 'UGX') {
   const amount = Number(value ?? 0);
-  return new Intl.NumberFormat('en-BW', { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount);
+  return new Intl.NumberFormat('en-UG', { style: 'currency', currency }).format(amount);
 }
 
 export function formatDate(value: string | null | undefined) {

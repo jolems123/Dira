@@ -29,7 +29,7 @@ export async function runLifecycle(options: { splitDelivery?: boolean } = {}): P
     await api().post(`${BASE}/purchase-requests`).set(auth(buyer)).send({
       title: 'Office laptops',
       department: 'IT',
-      currency: 'BWP',
+      currency: 'UGX',
       requiredBy: isoDays(30),
       items: [
         { name: 'Laptop 14"', quantity: 10, unit: 'unit', estimatedUnitPrice: 6000 },
@@ -47,7 +47,7 @@ export async function runLifecycle(options: { splitDelivery?: boolean } = {}): P
       purchaseRequestId: request.id,
       quoteDeadline: isoDays(7),
       requiredBy: isoDays(30),
-      currency: 'BWP',
+      currency: 'UGX',
       supplierIds: [supplierA.organizationId, supplierB.organizationId],
     }),
     'create rfq',
@@ -60,7 +60,7 @@ export async function runLifecycle(options: { splitDelivery?: boolean } = {}): P
 
   const quoteA = expectOk(
     await api().post(`${BASE}/rfqs/${rfq.id}/quotes`).set(auth(supplierA)).send({
-      currency: 'BWP',
+      currency: 'UGX',
       tax: 0,
       deliveryFee: 0,
       discount: 0,
@@ -78,7 +78,7 @@ export async function runLifecycle(options: { splitDelivery?: boolean } = {}): P
 
   const quoteB = expectOk(
     await api().post(`${BASE}/rfqs/${rfq.id}/quotes`).set(auth(supplierB)).send({
-      currency: 'BWP',
+      currency: 'UGX',
       tax: 0,
       deliveryFee: 0,
       discount: 0,
@@ -155,7 +155,7 @@ export async function runLifecycle(options: { splitDelivery?: boolean } = {}): P
       poId: purchaseOrder.id,
       invoiceDate: new Date().toISOString(),
       dueDate: isoDays(30),
-      currency: 'BWP',
+      currency: 'UGX',
       tax: Number(purchaseOrder.tax),
       items: poLines.map((line) => ({
         purchaseOrderItemId: line.id,
@@ -206,7 +206,7 @@ describe('procure-to-pay lifecycle', () => {
     const partial = expectOk(
       await api().post(`${BASE}/invoices/${invoiceId}/payments`).set(auth(buyer)).send({
         amount: Number((total / 2).toFixed(2)),
-        currency: 'BWP',
+        currency: 'UGX',
         paymentDate: new Date().toISOString(),
         paymentMethod: 'BANK_TRANSFER',
         reference: unique('PAY'),
@@ -222,7 +222,7 @@ describe('procure-to-pay lifecycle', () => {
     const final = expectOk(
       await api().post(`${BASE}/invoices/${invoiceId}/payments`).set(auth(buyer)).send({
         amount: Number(partial.outstanding),
-        currency: 'BWP',
+        currency: 'UGX',
         paymentDate: new Date().toISOString(),
         paymentMethod: 'BANK_TRANSFER',
         reference: unique('PAY'),
