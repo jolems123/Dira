@@ -8,19 +8,18 @@ import { AttachmentUpload } from '../../components/AttachmentUpload';
 
 type OrderItem = {
   id: string;
-  description: string;
+  name: string;
   quantity: string;
   unitPrice: string;
-  unitOfMeasure?: string | null;
 };
 
-type DeliveryItem = { purchaseOrderItemId: string; quantity: string; rejectedQuantity?: string | null };
+type DeliveryItem = { purchaseOrderItemId: string | null; orderedQuantity: string; receivedQuantity: string; rejectedQuantity: string };
 
 type Delivery = {
   id: string;
   kind: string;
   status: string;
-  reference?: string | null;
+  dispatchReference?: string | null;
   createdAt: string;
   expectedDeliveryDate?: string | null;
   items: DeliveryItem[];
@@ -45,12 +44,15 @@ type PurchaseOrder = {
   invoices: Array<{ id: string; invoiceNumber: string; status: string; total: string }>;
 };
 
-function sumFor(deliveries: Delivery[], kind: string, itemId: string) {
+/** Dispatches count shipped quantity; receipts count accepted quantity (received minus rejected). */
+function sumFor(deliveries: Delivery[], kind: 'DISPATCH' | 'RECEIPT', itemId: string) {
   return deliveries
     .filter((delivery) => delivery.kind === kind)
     .flatMap((delivery) => delivery.items)
     .filter((item) => item.purchaseOrderItemId === itemId)
-    .reduce((total, item) => total + Number(item.quantity), 0);
+    .reduce((total, item) => total + (kind === 'DISPATCH'
+      ? Number(item.orderedQuantity)
+      : Number(item.receivedQuantity) - Number(item.rejectedQuantity)), 0);
 }
 
 export default function OrdersPage() {
@@ -91,6 +93,19 @@ export default function OrdersPage() {
   );
   const isSupplier = selected ? orgId === selected.supplierOrganizationId : false;
   const isBuyer = selected ? orgId === selected.buyerOrganizationId : false;
+
+  // Pre-fill "now" columns with whatever is still outstanding so a complete delivery is one click.
+  useEffect(() => {
+    if (!selected) return;
+    const outstanding = (kind: 'DISPATCH' | 'RECEIPT') => Object.fromEntries(selected.items.map((item) => {
+      const remaining = Math.max(0, Number(item.quantity) - sumFor(selected.deliveries, kind, item.id));
+      return [item.id, remaining > 0 ? String(Number(remaining.toFixed(2))) : ''];
+    }));
+    setDispatchDraft(outstanding('DISPATCH'));
+    setReceiptDraft(outstanding('RECEIPT'));
+    const dispatchCount = selected.deliveries.filter((delivery) => delivery.kind === 'DISPATCH').length;
+    setReference(orgId === selected.supplierOrganizationId ? `${selected.poNumber}-D${dispatchCount + 1}` : '');
+  }, [selected, orgId]);
 
   async function run(label: string, action: () => Promise<unknown>) {
     setBusy(true);
@@ -169,7 +184,7 @@ export default function OrdersPage() {
                       </div>
                       <AttachmentUpload entityType="PURCHASE_ORDER" entityId={selected.id} documentType="DELIVERY_NOTE" label="Purchase order documents" />
                       {selected.deliveries.map((delivery) => (
-                        <AttachmentUpload key={delivery.id} entityType="DELIVERY" entityId={delivery.id} documentType={delivery.kind === 'RECEIPT' ? 'RECEIPT_EVIDENCE' : 'DELIVERY_NOTE'} label={`${delivery.kind === 'RECEIPT' ? 'Goods receipt evidence' : 'Dispatch note'} · ${delivery.reference ?? 'delivery'}`} />
+                        <AttachmentUpload key={delivery.id} entityType="DELIVERY" entityId={delivery.id} documentType={delivery.kind === 'RECEIPT' ? 'RECEIPT_EVIDENCE' : 'DELIVERY_NOTE'} label={`${delivery.kind === 'RECEIPT' ? 'Goods receipt evidence' : 'Dispatch note'} · ${delivery.dispatchReference ?? 'delivery'}`} />
                       ))}
                       <span className={`badge ${statusTone(selected.status)}`}>{selected.status}</span>
                     </div>
@@ -207,12 +222,12 @@ export default function OrdersPage() {
                           const ordered = Number(item.quantity);
                           const dispatched = sumFor(selected.deliveries, 'DISPATCH', item.id);
                           const received = sumFor(selected.deliveries, 'RECEIPT', item.id);
-                          const remaining = Math.max(0, ordered - received);
+                          const remaining = Math.max(0, ordered - (isSupplier ? dispatched : received));
                           const draft = isSupplier ? dispatchDraft : receiptDraft;
                           const setDraft = isSupplier ? setDispatchDraft : setReceiptDraft;
                           return (
                             <tr key={item.id} className="border-t border-slate-100">
-                              <td className="py-2 pr-3 text-slate-900">{item.description}</td>
+                              <td className="py-2 pr-3 text-slate-900">{item.name}</td>
                               <td className="py-2 text-right text-slate-700">{ordered}</td>
                               <td className="py-2 text-right text-slate-700">{dispatched}</td>
                               <td className="py-2 text-right text-slate-700">{received}</td>
@@ -221,7 +236,7 @@ export default function OrdersPage() {
                                 <input
                                   type="number"
                                   min={0}
-                                  max={ordered}
+                                  max={remaining}
                                   value={draft[item.id] ?? ''}
                                   onChange={(event) => setDraft((prev) => ({ ...prev, [item.id]: event.target.value }))}
                                   className="w-24 rounded-lg border border-slate-300 px-2 py-1 text-right"
@@ -241,13 +256,13 @@ export default function OrdersPage() {
                         placeholder={isSupplier ? 'Dispatch reference' : 'Delivery note reference'}
                         className="min-w-[200px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
                       />
-                      {isSupplier && ['ISSUED', 'ACKNOWLEDGED', 'PARTIALLY_DELIVERED'].includes(selected.status) && (
+                      {isSupplier && ['ACKNOWLEDGED', 'PROCESSING', 'PARTIALLY_DELIVERED'].includes(selected.status) && (
                         <button
                           type="button"
                           disabled={busy}
                           onClick={() =>
                             run('Dispatch recorded.', () =>
-                              apiFetch(`/purchase-orders/${selected.id}/dispatch`, {
+                              apiFetch(`/purchase-orders/${selected.id}/deliveries`, {
                                 method: 'POST',
                                 body: JSON.stringify({
                                   dispatchReference: reference,
@@ -322,7 +337,7 @@ export default function OrdersPage() {
                           <li key={delivery.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 p-3 text-sm">
                             <div>
                               <p className="font-medium text-slate-900">
-                                {delivery.kind === 'DISPATCH' ? 'Dispatch' : 'Goods receipt'} · {delivery.reference ?? '—'}
+                                {delivery.kind === 'DISPATCH' ? 'Dispatch' : 'Goods receipt'} · {delivery.dispatchReference ?? '—'}
                               </p>
                               <p className="text-xs text-slate-500">{formatDate(delivery.createdAt)}</p>
                             </div>

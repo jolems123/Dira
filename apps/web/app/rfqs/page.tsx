@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { API_BASE, getToken } from '../../lib/api';
+import { apiFetch, getToken } from '../../lib/api';
 
 type RFQ = {
   id: string;
@@ -21,6 +21,19 @@ type ApprovedRequest = {
   status: string;
 };
 
+type SupplierSuggestions = {
+  supplierIds: string[];
+  lastAwardedSupplierId: string | null;
+  basedOn: 'REPEAT' | 'TEMPLATE' | null;
+};
+
+/** One week out, formatted for a datetime-local input. */
+function defaultDeadline() {
+  const date = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  date.setMinutes(0, 0, 0);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
 type Supplier = {
   id: string;
   legalName: string;
@@ -34,6 +47,7 @@ export default function RFQsPage() {
   const [selectedRequestId, setSelectedRequestId] = useState('');
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>([]);
   const [quoteDeadline, setQuoteDeadline] = useState('');
+  const [suggestions, setSuggestions] = useState<SupplierSuggestions | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
@@ -79,6 +93,20 @@ export default function RFQsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  async function selectRequest(requestId: string) {
+    setSelectedRequestId(requestId);
+    setSuggestions(null);
+    if (!requestId) return;
+    if (!quoteDeadline) setQuoteDeadline(defaultDeadline());
+    try {
+      const result = await apiFetch<SupplierSuggestions>(`/purchase-requests/${requestId}/supplier-suggestions`);
+      setSuggestions(result);
+      if (result.supplierIds.length > 0) setSelectedSupplierIds(result.supplierIds);
+    } catch {
+      // Suggestions are a convenience; the buyer can still pick suppliers by hand.
+    }
+  }
+
   async function createRfq(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const token = getToken();
@@ -121,6 +149,7 @@ export default function RFQsPage() {
       setSelectedRequestId('');
       setSelectedSupplierIds([]);
       setQuoteDeadline('');
+      setSuggestions(null);
       await loadData();
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : 'Unable to create RFQ');
@@ -168,7 +197,7 @@ export default function RFQsPage() {
             <select
               className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2"
               value={selectedRequestId}
-              onChange={(event) => setSelectedRequestId(event.target.value)}
+              onChange={(event) => selectRequest(event.target.value)}
               disabled={submitting}
             >
               <option value="">Select approved request</option>
@@ -192,6 +221,11 @@ export default function RFQsPage() {
         </div>
         <div>
           <p className="text-sm text-slate-700">Invite suppliers</p>
+          {suggestions && suggestions.supplierIds.length > 0 && (
+            <p className="mt-1 text-xs text-emerald-700">
+              Pre-selected the suppliers used {suggestions.basedOn === 'TEMPLATE' ? 'for this template' : 'last time'}. Adjust if needed.
+            </p>
+          )}
           <div className="mt-2 grid gap-2 md:grid-cols-2">
             {suppliers.length === 0 ? (
               <p className="text-sm text-slate-500">No suppliers available.</p>
@@ -210,6 +244,9 @@ export default function RFQsPage() {
                     disabled={submitting}
                   />
                   {supplier.tradingName ?? supplier.legalName}
+                  {suggestions?.lastAwardedSupplierId === supplier.id && (
+                    <span className="badge ml-auto bg-emerald-100 text-emerald-800">Won last time</span>
+                  )}
                 </label>
               );
             })}

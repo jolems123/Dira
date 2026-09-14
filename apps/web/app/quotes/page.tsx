@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AttachmentUpload } from '../../components/AttachmentUpload';
-import { getToken } from '../../lib/api';
+import { formatMoney, getToken } from '../../lib/api';
 
 type RFQ = {
   id: string;
@@ -17,7 +17,11 @@ type Quote = {
   id: string;
   quoteNumber: string;
   status: string;
-  total: number;
+  subtotal: string;
+  tax: string;
+  deliveryFee: string;
+  discount: string;
+  total: string;
   currency: string;
   deliveryDays?: number | null;
   paymentTerms?: string | null;
@@ -30,7 +34,7 @@ type Quote = {
     country?: string | null;
     verificationStatus?: string | null;
   };
-  items?: Array<{ id: string; rfqItemId?: string | null; quantity: number; unitPrice: number; subtotal: number; notes?: string | null }>;
+  items?: Array<{ id: string; itemName?: string | null; unit?: string | null; quantity: string; unitPrice: string; subtotal: string; notes?: string | null }>;
 };
 
 export default function QuotesPage() {
@@ -42,6 +46,9 @@ export default function QuotesPage() {
   const [awardingId, setAwardingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+
+  const activeQuotes = quotes.filter((quote) => !['WITHDRAWN', 'REJECTED', 'EXPIRED'].includes(quote.status));
+  const lowestTotal = activeQuotes.length > 1 ? Math.min(...activeQuotes.map((quote) => Number(quote.total))) : null;
 
   const selectedRfq = useMemo(
     () => rfqs.find((rfq) => rfq.id === selectedRfqId) ?? null,
@@ -177,7 +184,8 @@ export default function QuotesPage() {
               </div>
 
               <div className="text-left md:text-right">
-                <p className="text-xl font-bold text-slate-900">{quote.currency} {quote.total.toLocaleString()}</p>
+                <p className="text-xl font-bold text-slate-900">{formatMoney(quote.total, quote.currency)}</p>
+                {lowestTotal !== null && Number(quote.total) === lowestTotal && <span className="badge bg-emerald-100 text-emerald-800">Lowest total</span>}
                 <p className="text-sm text-slate-500">Delivery: {quote.deliveryDays ? `${quote.deliveryDays} days` : 'TBD'}</p>
               </div>
             </div>
@@ -185,7 +193,11 @@ export default function QuotesPage() {
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <div className="rounded-xl border border-slate-200 p-3 text-sm text-slate-600">
                 <div className="font-medium text-slate-800">Breakdown</div>
-                <div className="mt-2 flex justify-between"><span>Subtotal</span><span>{quote.currency} {quote.total.toLocaleString()}</span></div>
+                <div className="mt-2 flex justify-between"><span>Subtotal</span><span>{formatMoney(quote.subtotal, quote.currency)}</span></div>
+                {Number(quote.deliveryFee) > 0 && <div className="flex justify-between"><span>Delivery</span><span>{formatMoney(quote.deliveryFee, quote.currency)}</span></div>}
+                {Number(quote.discount) > 0 && <div className="flex justify-between"><span>Discount</span><span>−{formatMoney(quote.discount, quote.currency)}</span></div>}
+                <div className="flex justify-between"><span>VAT</span><span>{formatMoney(quote.tax, quote.currency)}</span></div>
+                <div className="flex justify-between font-semibold text-slate-900"><span>Total</span><span>{formatMoney(quote.total, quote.currency)}</span></div>
                 <div className="flex justify-between"><span>Payment</span><span>{quote.paymentTerms ?? 'TBD'}</span></div>
                 <div className="flex justify-between"><span>Notes</span><span>{quote.notes ? quote.notes.slice(0, 80) : '—'}</span></div>
               </div>
@@ -195,8 +207,8 @@ export default function QuotesPage() {
                   <ul className="mt-2 space-y-1">
                     {quote.items.map((item) => (
                       <li key={item.id} className="flex justify-between gap-2">
-                        <span>{item.rfqItemId ?? 'Item'}</span>
-                        <span>{item.quantity} × {item.unitPrice}</span>
+                        <span>{item.itemName ?? 'Item'}</span>
+                        <span>{Number(item.quantity)} {item.unit ?? ''} × {formatMoney(item.unitPrice, quote.currency)} = {formatMoney(item.subtotal, quote.currency)}</span>
                       </li>
                     ))}
                   </ul>

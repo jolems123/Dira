@@ -11,6 +11,120 @@ export function round2(value: number): number {
   return Number(value.toFixed(2));
 }
 
+/** Uganda standard-rate VAT (VAT Act, Cap. 349). */
+export const UGANDA_VAT_RATE = 0.18;
+
+/**
+ * Tax to charge on a taxable amount. An explicit amount wins so suppliers that are
+ * not VAT-registered, or selling exempt/zero-rated goods, can submit 0.
+ */
+export function resolveTax(taxableAmount: number, explicitTax?: number): number {
+  if (explicitTax !== undefined) return round2(explicitTax);
+  return round2(Math.max(taxableAmount, 0) * UGANDA_VAT_RATE);
+}
+
+export interface PricedLine {
+  quantity: number;
+  unitPrice?: number | null;
+}
+
+/**
+ * Single source of truth for document arithmetic: line totals, subtotal, VAT and grand total.
+ * VAT is charged on subtotal + delivery - discount unless an explicit tax amount is given.
+ */
+export function calculateTotals(input: { lines: PricedLine[]; deliveryFee?: number; discount?: number; tax?: number }) {
+  const lineTotals = input.lines.map((line) => round2(line.quantity * (line.unitPrice ?? 0)));
+  const subtotal = round2(lineTotals.reduce((sum, value) => sum + value, 0));
+  const deliveryFee = round2(input.deliveryFee ?? 0);
+  const discount = round2(input.discount ?? 0);
+  const tax = resolveTax(subtotal + deliveryFee - discount, input.tax);
+  const total = round2(subtotal + tax + deliveryFee - discount);
+  return { lineTotals, subtotal, deliveryFee, discount, tax, total };
+}
+
+/** Days until payment is due for common term spellings: "NET30", "Net 45", "60 days", "COD". */
+export function paymentTermDays(terms: string | null | undefined, fallback = 30): number {
+  if (!terms) return fallback;
+  if (/\b(cod|cash on delivery|on delivery|immediate|due on receipt)\b/i.test(terms)) return 0;
+  const match = terms.match(/(\d{1,3})/);
+  return match ? Number(match[1]) : fallback;
+}
+
+export function addDays(date: Date, days: number): Date {
+  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+export type ScheduleFrequencyValue = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY';
+
+/** Next occurrence after `from`. Month steps clamp to the last day, so 31 Jan -> 28/29 Feb. */
+export function nextOccurrence(from: Date, frequency: ScheduleFrequencyValue): Date {
+  if (frequency === 'WEEKLY') return addDays(from, 7);
+  const months = frequency === 'MONTHLY' ? 1 : 3;
+  const target = new Date(from.getTime());
+  const day = target.getUTCDate();
+  target.setUTCDate(1);
+  target.setUTCMonth(target.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(day, lastDay));
+  return target;
+}
+
+/** Advances a schedule past `now`, skipping missed periods so a long outage creates one draft, not a backlog. */
+export function advanceSchedule(nextRunAt: Date, frequency: ScheduleFrequencyValue, now: Date): Date {
+  let candidate = nextOccurrence(nextRunAt, frequency);
+  while (candidate <= now) candidate = nextOccurrence(candidate, frequency);
+  return candidate;
+}
+
+const NON_BILLING_INVOICE_STATUSES = ['VOID', 'REJECTED', 'CANCELLED'];
+
+/**
+ * What a supplier can still bill per purchase order line: net received quantity (or dispatched,
+ * when the buyer has not recorded a receipt yet) minus quantities on live invoices.
+ */
+export function invoiceableLines(input: {
+  items: Array<{ id: string; name: string; quantity: Decimalish; unitPrice: Decimalish }>;
+  deliveries: Array<{ kind: string; items: Array<{ purchaseOrderItemId: string | null; orderedQuantity: Decimalish; receivedQuantity: Decimalish; rejectedQuantity: Decimalish }> }>;
+  invoices: Array<{ status: string; items: Array<{ purchaseOrderItemId: string | null; quantity: Decimalish }> }>;
+}) {
+  const received = new Map<string, number>();
+  const dispatched = new Map<string, number>();
+  for (const delivery of input.deliveries) {
+    for (const item of delivery.items) {
+      if (!item.purchaseOrderItemId) continue;
+      if (delivery.kind === 'RECEIPT') {
+        received.set(item.purchaseOrderItemId, (received.get(item.purchaseOrderItemId) ?? 0) + num(item.receivedQuantity) - num(item.rejectedQuantity));
+      } else {
+        dispatched.set(item.purchaseOrderItemId, (dispatched.get(item.purchaseOrderItemId) ?? 0) + num(item.orderedQuantity));
+      }
+    }
+  }
+  const invoiced = new Map<string, number>();
+  for (const invoice of input.invoices) {
+    if (NON_BILLING_INVOICE_STATUSES.includes(invoice.status)) continue;
+    for (const item of invoice.items) {
+      if (!item.purchaseOrderItemId) continue;
+      invoiced.set(item.purchaseOrderItemId, (invoiced.get(item.purchaseOrderItemId) ?? 0) + num(item.quantity));
+    }
+  }
+  const anyReceipt = received.size > 0;
+  const basis: 'RECEIVED' | 'DISPATCHED' = anyReceipt ? 'RECEIVED' : 'DISPATCHED';
+  const lines = input.items.map((item) => {
+    const deliveredQuantity = round2((anyReceipt ? received : dispatched).get(item.id) ?? 0);
+    const invoicedQuantity = round2(invoiced.get(item.id) ?? 0);
+    return {
+      purchaseOrderItemId: item.id,
+      description: item.name,
+      orderedQuantity: num(item.quantity),
+      deliveredQuantity,
+      invoicedQuantity,
+      quantity: round2(Math.max(0, Math.min(deliveredQuantity, num(item.quantity)) - invoicedQuantity)),
+      unitPrice: num(item.unitPrice),
+    };
+  });
+  return { basis, lines };
+}
+
 /** Quantities are compared with a small tolerance to absorb decimal(18,2) rounding. */
 export const QTY_EPSILON = 0.005;
 export const MONEY_EPSILON = 0.01;

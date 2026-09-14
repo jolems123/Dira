@@ -7,6 +7,7 @@ import { authRouter } from './routes/auth';
 import { healthRouter } from './routes/health';
 import { procurementRouter } from './routes/procurement';
 import { documentsRouter } from './routes/documents';
+import { templatesRouter } from './routes/templates';
 
 export const app = express();
 
@@ -27,6 +28,7 @@ app.use(express.urlencoded({ extended: true, limit: '512kb' }));
 app.use('/api/v1', healthRouter);
 app.use('/api/v1/auth', rateLimit({ windowMs: 15 * 60 * 1000, max: 50, keyPrefix: 'auth' }), authRouter);
 app.use('/api/v1', rateLimit({ windowMs: 60 * 1000, max: 600, keyPrefix: 'api' }), procurementRouter);
+app.use('/api/v1', rateLimit({ windowMs: 60 * 1000, max: 600, keyPrefix: 'templates' }), templatesRouter);
 app.use('/api/v1/documents', rateLimit({ windowMs: 60 * 1000, max: 120, keyPrefix: 'documents' }), documentsRouter);
 
 app.use((_req: express.Request, res: express.Response) => {

@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db';
@@ -7,11 +8,16 @@ import {
   PO_TRANSITIONS,
   QTY_EPSILON,
   QUOTE_TRANSITIONS,
+  addDays,
   assertTransition,
+  calculateTotals,
+  invoiceableLines,
   isQuoteExpired,
   num,
+  paymentTermDays,
   round2,
 } from '../lib/procurement-rules';
+import { estimateBudget, repeatRequest, supplierSuggestions } from '../lib/repeat-procurement';
 import { runThreeWayMatch } from '../lib/three-way-match';
 
 const requestSchema = z.object({
@@ -49,7 +55,7 @@ const createRfqSchema = z.object({
 
 const submitQuotationSchema = z.object({
   currency: z.string().length(3).default('UGX'),
-  tax: z.number().nonnegative().default(0),
+  tax: z.number().nonnegative().optional(),
   deliveryFee: z.number().nonnegative().default(0),
   discount: z.number().nonnegative().default(0),
   deliveryDays: z.number().int().nonnegative().optional(),
@@ -58,7 +64,7 @@ const submitQuotationSchema = z.object({
   notes: z.string().max(3000).optional(),
   items: z.array(z.object({
     rfqItemId: z.string().min(1),
-    quantity: z.number().positive(),
+    quantity: z.number().positive().optional(),
     unitPrice: z.number().nonnegative(),
     notes: z.string().max(1000).optional(),
   })).min(1),
@@ -102,18 +108,18 @@ const goodsReceiptSchema = z.object({
 });
 
 const invoiceSchema = z.object({
-  invoiceNumber: z.string().min(1),
+  invoiceNumber: z.string().min(1).optional(),
   poId: z.string().min(1),
-  invoiceDate: z.string().datetime(),
-  dueDate: z.string().datetime(),
-  currency: z.string().length(3).default('UGX'),
-  tax: z.number().nonnegative().default(0),
+  invoiceDate: z.string().datetime().optional(),
+  dueDate: z.string().datetime().optional(),
+  currency: z.string().length(3).optional(),
+  tax: z.number().nonnegative().optional(),
   items: z.array(z.object({
     purchaseOrderItemId: z.string().min(1).optional(),
     description: z.string().min(1),
     quantity: z.number().positive(),
     unitPrice: z.number().nonnegative(),
-  })).min(1),
+  })).min(1).optional(),
   attachmentKey: z.string().max(300).optional(),
   attachmentUrl: z.string().url().optional(),
 });
@@ -124,9 +130,9 @@ const decisionSchema = z.object({
 });
 
 const paymentSchema = z.object({
-  amount: z.number().positive(),
-  currency: z.string().length(3).default('UGX'),
-  paymentDate: z.string().datetime(),
+  amount: z.number().positive().optional(),
+  currency: z.string().length(3).optional(),
+  paymentDate: z.string().datetime().optional(),
   paymentMethod: z.enum(['BANK_TRANSFER', 'CASH', 'CHEQUE', 'MOBILE_MONEY', 'CARD', 'OTHER']),
   reference: z.string().min(1),
   notes: z.string().max(500).optional(),
@@ -165,6 +171,30 @@ async function recordAudit({
   });
 }
 
+/** Prices a quotation from unit prices; quantities default to what the RFQ asked for. */
+function priceQuoteLines(
+  rfqItems: Array<{ id: string; quantity: Prisma.Decimal | null }>,
+  input: z.infer<typeof submitQuotationSchema>,
+) {
+  const rfqItemMap = new Map(rfqItems.map((item) => [item.id, item]));
+  const lines: Array<{ rfqItemId: string; quantity: number; unitPrice: number; notes?: string }> = [];
+  for (const item of input.items) {
+    const rfqItem = rfqItemMap.get(item.rfqItemId);
+    if (!rfqItem) return { error: `Invalid RFQ item: ${item.rfqItemId}` } as const;
+    const quantity = item.quantity ?? (rfqItem.quantity === null ? undefined : num(rfqItem.quantity));
+    if (!quantity) return { error: `Quantity is required for RFQ item ${item.rfqItemId}` } as const;
+    lines.push({ rfqItemId: item.rfqItemId, quantity, unitPrice: item.unitPrice, notes: item.notes });
+  }
+  const totals = calculateTotals({ lines, deliveryFee: input.deliveryFee, discount: input.discount, tax: input.tax });
+  if (totals.total < 0) return { error: 'Discount cannot exceed the total before discount' } as const;
+  return {
+    quoteItems: lines.map((line, index) => ({ ...line, subtotal: totals.lineTotals[index] })),
+    subtotal: totals.subtotal,
+    tax: totals.tax,
+    total: totals.total,
+  };
+}
+
 export const procurementRouter = Router();
 procurementRouter.use(requireAuth);
 
@@ -175,8 +205,35 @@ procurementRouter.get('/categories', async (_req, res, next) => {
 procurementRouter.get('/purchase-requests', async (req: AuthenticatedRequest, res, next) => {
   try {
     if (!req.user?.organizationId) return res.status(403).json({ message: 'Organization membership required' });
-    const items = await prisma.purchaseRequest.findMany({ where: { organizationId: req.user.organizationId }, orderBy: { createdAt: 'desc' }, include: { items: true } });
+    const items = await prisma.purchaseRequest.findMany({
+      where: { organizationId: req.user.organizationId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        items: true,
+        template: { select: { id: true, name: true } },
+        sourceRequest: { select: { id: true, requestNumber: true } },
+      },
+    });
     return res.json({ items });
+  } catch (error) { return next(error); }
+});
+
+procurementRouter.post('/purchase-requests/:id/repeat', requireRole('OWNER', 'ADMIN', 'REQUESTER', 'PROCUREMENT'), async (req: AuthenticatedRequest, res, next) => {
+  try {
+    if (!req.user?.organizationId) return res.status(403).json({ message: 'Organization membership required' });
+    const request = await repeatRequest(req.user.organizationId, req.user.id, String(req.params.id));
+    if (!request) return res.status(404).json({ message: 'Purchase request not found' });
+    await recordAudit({ organizationId: req.user.organizationId, userId: req.user.id, action: 'REPEAT_PURCHASE_REQUEST', entityType: 'PurchaseRequest', entityId: request.id, after: { status: request.status }, metadata: { sourceRequestId: request.sourceRequestId } });
+    return res.status(201).json(request);
+  } catch (error) { return next(error); }
+});
+
+procurementRouter.get('/purchase-requests/:id/supplier-suggestions', async (req: AuthenticatedRequest, res, next) => {
+  try {
+    if (!req.user?.organizationId) return res.status(403).json({ message: 'Organization membership required' });
+    const suggestions = await supplierSuggestions(req.user.organizationId, String(req.params.id));
+    if (!suggestions) return res.status(404).json({ message: 'Purchase request not found' });
+    return res.json(suggestions);
   } catch (error) { return next(error); }
 });
 
@@ -193,7 +250,7 @@ procurementRouter.post('/purchase-requests', requireRole('OWNER', 'ADMIN', 'REQU
         description: parsed.data.description,
         department: parsed.data.department,
         currency: parsed.data.currency,
-        estimatedBudget: parsed.data.estimatedBudget,
+        estimatedBudget: estimateBudget(parsed.data.items) ?? parsed.data.estimatedBudget,
         requiredBy: parsed.data.requiredBy ? new Date(parsed.data.requiredBy) : undefined,
         requestedBy: req.user.id,
         items: { create: parsed.data.items },
@@ -384,9 +441,10 @@ procurementRouter.get('/rfqs/:id/quotes', requireRole('OWNER', 'ADMIN', 'PROCURE
   try {
     const rfq = await prisma.rFQ.findFirst({
       where: { id: String(req.params.id), organizationId: req.user!.organizationId },
-      select: { id: true },
+      select: { id: true, items: { select: { id: true, name: true, unit: true } } },
     });
     if (!rfq) return res.status(404).json({ message: 'RFQ not found' });
+    const itemNames = new Map(rfq.items.map((item) => [item.id, item]));
     const items = await prisma.quotation.findMany({
       where: { rfqId: rfq.id },
       include: {
@@ -404,7 +462,12 @@ procurementRouter.get('/rfqs/:id/quotes', requireRole('OWNER', 'ADMIN', 'PROCURE
       },
       orderBy: { createdAt: 'desc' },
     });
-    return res.json({ items });
+    return res.json({
+      items: items.map((quote) => ({
+        ...quote,
+        items: quote.items.map((item) => ({ ...item, itemName: item.rfqItemId ? itemNames.get(item.rfqItemId)?.name ?? null : null, unit: item.rfqItemId ? itemNames.get(item.rfqItemId)?.unit ?? null : null })),
+      })),
+    });
   } catch (error) { return next(error); }
 });
 
@@ -434,23 +497,9 @@ procurementRouter.post('/rfqs/:id/quotes', requireRole('OWNER', 'ADMIN', 'SUPPLI
     });
     if (existingSubmitted) return res.status(409).json({ message: 'A quotation has already been submitted for this RFQ' });
 
-    const validRfqItemIds = new Set(rfq.items.map((item) => item.id));
-    for (const item of parsed.data.items) {
-      if (!validRfqItemIds.has(item.rfqItemId)) {
-        return res.status(400).json({ message: `Invalid RFQ item: ${item.rfqItemId}` });
-      }
-    }
-
-    const quoteItems = parsed.data.items.map((item) => ({
-      rfqItemId: item.rfqItemId,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      subtotal: Number((item.quantity * item.unitPrice).toFixed(2)),
-      notes: item.notes,
-    }));
-    const subtotal = Number(quoteItems.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2));
-    const total = Number((subtotal + parsed.data.tax + parsed.data.deliveryFee - parsed.data.discount).toFixed(2));
-    if (total < 0) return res.status(400).json({ message: 'Discount cannot exceed the total before discount' });
+    const priced = priceQuoteLines(rfq.items, parsed.data);
+    if ('error' in priced) return res.status(400).json({ message: priced.error });
+    const { quoteItems, subtotal, tax, total } = priced;
 
     const quotation = await prisma.$transaction(async (tx) => {
       const created = await tx.quotation.create({
@@ -460,7 +509,7 @@ procurementRouter.post('/rfqs/:id/quotes', requireRole('OWNER', 'ADMIN', 'SUPPLI
           supplierOrganizationId: req.user!.organizationId!,
           currency: parsed.data.currency,
           subtotal,
-          tax: parsed.data.tax,
+          tax,
           deliveryFee: parsed.data.deliveryFee,
           discount: parsed.data.discount,
           total,
@@ -509,21 +558,9 @@ procurementRouter.patch('/quotes/:id', requireRole('OWNER', 'ADMIN', 'SUPPLIER_M
       return res.status(409).json({ message: 'Quote deadline has passed' });
     }
 
-    const validRfqItemIds = new Set(quotation.rfq.items.map((item) => item.id));
-    for (const item of parsed.data.items) {
-      if (!validRfqItemIds.has(item.rfqItemId)) return res.status(400).json({ message: `Invalid RFQ item: ${item.rfqItemId}` });
-    }
-
-    const quoteItems = parsed.data.items.map((item) => ({
-      rfqItemId: item.rfqItemId,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      subtotal: round2(item.quantity * item.unitPrice),
-      notes: item.notes,
-    }));
-    const subtotal = round2(quoteItems.reduce((sum, item) => sum + item.subtotal, 0));
-    const total = round2(subtotal + parsed.data.tax + parsed.data.deliveryFee - parsed.data.discount);
-    if (total < 0) return res.status(400).json({ message: 'Discount cannot exceed the total before discount' });
+    const priced = priceQuoteLines(quotation.rfq.items, parsed.data);
+    if ('error' in priced) return res.status(400).json({ message: priced.error });
+    const { quoteItems, subtotal, tax, total } = priced;
 
     const updated = await prisma.$transaction(async (tx) => {
       await tx.quotationItem.deleteMany({ where: { quotationId: quotation.id } });
@@ -532,7 +569,7 @@ procurementRouter.patch('/quotes/:id', requireRole('OWNER', 'ADMIN', 'SUPPLIER_M
         data: {
           currency: parsed.data.currency,
           subtotal,
-          tax: parsed.data.tax,
+          tax,
           deliveryFee: parsed.data.deliveryFee,
           discount: parsed.data.discount,
           total,
@@ -949,6 +986,53 @@ procurementRouter.post('/purchase-orders/:id/goods-receipt', requireRole('OWNER'
 
 
 
+/** Everything a supplier would otherwise retype: billable lines, VAT treatment from the PO, dates from payment terms. */
+async function buildInvoiceDraft(po: {
+  id: string;
+  poNumber: string;
+  currency: string;
+  tax: Prisma.Decimal;
+  paymentTerms: string | null;
+  items: Array<{ id: string; name: string; quantity: Prisma.Decimal; unitPrice: Prisma.Decimal }>;
+  deliveries: Array<{ kind: string; items: Array<{ purchaseOrderItemId: string | null; orderedQuantity: Prisma.Decimal; receivedQuantity: Prisma.Decimal; rejectedQuantity: Prisma.Decimal }> }>;
+}) {
+  const invoices = await prisma.invoice.findMany({
+    where: { purchaseOrderId: po.id },
+    select: { status: true, items: { select: { purchaseOrderItemId: true, quantity: true } } },
+  });
+  const { basis, lines } = invoiceableLines({ items: po.items, deliveries: po.deliveries, invoices });
+  const billable = lines.filter((line) => line.quantity > 0);
+  const vatRegistered = num(po.tax) > 0;
+  const totals = calculateTotals({ lines: billable, tax: vatRegistered ? undefined : 0 });
+  const invoiceDate = new Date();
+  return {
+    purchaseOrderId: po.id,
+    poNumber: po.poNumber,
+    currency: po.currency,
+    basis,
+    vatRegistered,
+    invoiceNumber: `INV-${po.poNumber.replace(/^PO-/, '')}-${invoices.length + 1}`,
+    invoiceDate: invoiceDate.toISOString(),
+    dueDate: addDays(invoiceDate, paymentTermDays(po.paymentTerms)).toISOString(),
+    lines: lines.map((line) => ({ ...line, subtotal: round2(line.quantity * line.unitPrice) })),
+    subtotal: totals.subtotal,
+    tax: totals.tax,
+    total: totals.total,
+  };
+}
+
+procurementRouter.get('/purchase-orders/:id/invoice-draft', requireRole('OWNER', 'ADMIN', 'SUPPLIER_MANAGER'), async (req: AuthenticatedRequest, res, next) => {
+  try {
+    if (!req.user?.organizationId) return res.status(403).json({ message: 'Organization membership required' });
+    const po = await prisma.purchaseOrder.findFirst({
+      where: { id: String(req.params.id), supplierOrganizationId: req.user.organizationId },
+      include: { items: true, deliveries: { include: { items: true } } },
+    });
+    if (!po) return res.status(404).json({ message: 'Purchase order not found' });
+    return res.json(await buildInvoiceDraft(po));
+  } catch (error) { return next(error); }
+});
+
 procurementRouter.post('/purchase-orders/:id/invoices', requireRole('OWNER', 'ADMIN', 'SUPPLIER_MANAGER'), async (req: AuthenticatedRequest, res, next) => {
   try {
     const parsed = invoiceSchema.safeParse(req.body);
@@ -966,48 +1050,57 @@ procurementRouter.post('/purchase-orders/:id/invoices', requireRole('OWNER', 'AD
     if (['DRAFT', 'ISSUED'].includes(po.status)) {
       return res.status(409).json({ message: 'Purchase order must be acknowledged before invoicing' });
     }
-    if (po.currency !== parsed.data.currency) {
+    const currency = parsed.data.currency ?? po.currency;
+    if (po.currency !== currency) {
       return res.status(400).json({ message: `Invoice currency must match the purchase order currency (${po.currency})` });
     }
 
+    const draft = await buildInvoiceDraft(po);
+    const invoiceItems = parsed.data.items ?? draft.lines
+      .filter((line) => line.quantity > 0)
+      .map((line) => ({ purchaseOrderItemId: line.purchaseOrderItemId, description: line.description, quantity: line.quantity, unitPrice: line.unitPrice }));
+    if (invoiceItems.length === 0) return res.status(409).json({ message: 'Nothing left to invoice: all delivered quantities are already billed' });
+    const invoiceNumber = parsed.data.invoiceNumber ?? draft.invoiceNumber;
+
     const orderItemMap = new Map(po.items.map((item) => [item.id, item]));
-    for (const item of parsed.data.items) {
+    for (const item of invoiceItems) {
       if (item.purchaseOrderItemId && !orderItemMap.has(item.purchaseOrderItemId)) {
         return res.status(400).json({ message: `Unknown purchase order item: ${item.purchaseOrderItemId}` });
       }
     }
 
     const existingInvoice = await prisma.invoice.findUnique({
-      where: { supplierOrganizationId_invoiceNumber: { supplierOrganizationId: req.user.organizationId, invoiceNumber: parsed.data.invoiceNumber } },
+      where: { supplierOrganizationId_invoiceNumber: { supplierOrganizationId: req.user.organizationId, invoiceNumber } },
       select: { id: true },
     });
     if (existingInvoice) return res.status(409).json({ message: 'Invoice number already exists for this supplier' });
 
-    const subtotal = round2(parsed.data.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0));
-    const tax = round2(parsed.data.tax);
-    const total = round2(subtotal + tax);
+    const { lineTotals, subtotal, tax, total } = calculateTotals({
+      lines: invoiceItems,
+      tax: parsed.data.tax ?? (draft.vatRegistered ? undefined : 0),
+    });
 
     const invoice = await prisma.invoice.create({
       data: {
-        invoiceNumber: parsed.data.invoiceNumber,
+        invoiceNumber,
         supplierOrganizationId: po.supplierOrganizationId,
         buyerOrganizationId: po.buyerOrganizationId,
         purchaseOrderId: po.id,
-        currency: parsed.data.currency,
+        currency,
         subtotal,
         tax,
         total,
-        invoiceDate: new Date(parsed.data.invoiceDate),
-        dueDate: new Date(parsed.data.dueDate),
+        invoiceDate: new Date(parsed.data.invoiceDate ?? draft.invoiceDate),
+        dueDate: new Date(parsed.data.dueDate ?? draft.dueDate),
         status: 'SUBMITTED',
         attachmentKey: parsed.data.attachmentKey,
         items: {
-          create: parsed.data.items.map((item) => ({
+          create: invoiceItems.map((item, index) => ({
             purchaseOrderItemId: item.purchaseOrderItemId,
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            subtotal: round2(item.quantity * item.unitPrice),
+            subtotal: lineTotals[index],
           })),
         },
       },
@@ -1100,7 +1193,8 @@ procurementRouter.post('/invoices/:id/payments', requireRole('OWNER', 'ADMIN', '
     if (!['APPROVED', 'PARTIALLY_PAID'].includes(invoice.status)) {
       return res.status(409).json({ message: 'Invoice must be approved before payments can be recorded' });
     }
-    if (invoice.currency !== parsed.data.currency) {
+    const currency = parsed.data.currency ?? invoice.currency;
+    if (invoice.currency !== currency) {
       return res.status(400).json({ message: `Payment currency must match the invoice currency (${invoice.currency})` });
     }
     if (invoice.paymentRecords.some((payment) => payment.reference === parsed.data.reference)) {
@@ -1110,11 +1204,13 @@ procurementRouter.post('/invoices/:id/payments', requireRole('OWNER', 'ADMIN', '
     const currentPaid = round2(invoice.paymentRecords.reduce((sum, payment) => sum + num(payment.amount), 0));
     const payable = num(invoice.total);
     const outstanding = round2(payable - currentPaid);
-    if (parsed.data.amount > outstanding + 0.01) {
+    const amount = parsed.data.amount ?? outstanding;
+    if (amount <= 0) return res.status(409).json({ message: 'Invoice has no outstanding balance' });
+    if (amount > outstanding + 0.01) {
       return res.status(400).json({ message: 'Payment exceeds the outstanding invoice balance', details: { payable, currentPaid, outstanding } });
     }
 
-    const nextTotal = round2(currentPaid + parsed.data.amount);
+    const nextTotal = round2(currentPaid + amount);
     const status = nextTotal >= payable - 0.01 ? 'PAID' : 'PARTIALLY_PAID';
     assertTransition(INVOICE_TRANSITIONS, invoice.status, status, 'invoice');
 
@@ -1122,12 +1218,12 @@ procurementRouter.post('/invoices/:id/payments', requireRole('OWNER', 'ADMIN', '
       const created = await tx.paymentRecord.create({
         data: {
           invoiceId: invoice.id,
-          amount: parsed.data.amount,
-          currency: parsed.data.currency,
+          amount,
+          currency,
           paymentMethod: parsed.data.paymentMethod,
           reference: parsed.data.reference,
           notes: parsed.data.notes,
-          paidAt: new Date(parsed.data.paymentDate),
+          paidAt: parsed.data.paymentDate ? new Date(parsed.data.paymentDate) : new Date(),
           recordedBy: req.user!.id,
         },
       });
@@ -1245,11 +1341,28 @@ procurementRouter.get('/supplier/rfqs', requireRole('OWNER', 'ADMIN', 'SUPPLIER_
       },
       orderBy: { invitedAt: 'desc' },
     });
+    const pastQuotes = await prisma.quotation.findMany({
+      where: { supplierOrganizationId: orgId, status: { notIn: ['DRAFT', 'WITHDRAWN'] } },
+      select: { items: { select: { rfqItemId: true, unitPrice: true } }, rfq: { select: { items: { select: { id: true, name: true } } } } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+    const lastPriceByName = new Map<string, number>();
+    for (const quote of pastQuotes) {
+      const names = new Map(quote.rfq.items.map((item) => [item.id, item.name]));
+      for (const item of quote.items) {
+        const name = item.rfqItemId ? names.get(item.rfqItemId) : undefined;
+        if (name && !lastPriceByName.has(name)) lastPriceByName.set(name, num(item.unitPrice));
+      }
+    }
     return res.json({
       items: invitations.map((invitation) => ({
         invitationId: invitation.id,
         responseStatus: invitation.responseStatus,
-        rfq: invitation.rfq,
+        rfq: {
+          ...invitation.rfq,
+          items: invitation.rfq.items.map((item) => ({ ...item, lastQuotedUnitPrice: lastPriceByName.get(item.name) ?? null })),
+        },
         myQuotation: invitation.rfq.quotations[0] ?? null,
       })),
     });

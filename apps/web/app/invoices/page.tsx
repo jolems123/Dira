@@ -27,6 +27,14 @@ type Invoice = {
 
 const APPROVABLE = ['SUBMITTED', 'RECEIVED', 'UNDER_REVIEW', 'VERIFIED'];
 const PAYABLE = ['APPROVED', 'PARTIALLY_PAID'];
+const PAYMENT_METHODS: Array<[string, string]> = [
+  ['BANK_TRANSFER', 'Bank transfer'],
+  ['MOBILE_MONEY', 'Mobile money'],
+  ['CHEQUE', 'Cheque'],
+  ['CASH', 'Cash'],
+  ['CARD', 'Card'],
+  ['OTHER', 'Other'],
+];
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -36,6 +44,7 @@ export default function InvoicesPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<Record<string, string>>({});
   const [paymentReference, setPaymentReference] = useState<Record<string, string>>({});
+  const [paymentMethod, setPaymentMethod] = useState<Record<string, string>>({});
 
   async function load() {
     try {
@@ -71,8 +80,10 @@ export default function InvoicesPage() {
     }
   }
 
-  async function pay(invoice: Invoice) {
-    const amount = Number(paymentAmount[invoice.id]);
+  async function pay(invoice: Invoice, outstanding: number) {
+    // An untouched amount field means "pay the full outstanding balance"; the API applies the same default.
+    const typed = paymentAmount[invoice.id];
+    const amount = typed === undefined ? outstanding : Number(typed);
     const reference = paymentReference[invoice.id]?.trim();
     if (!amount || amount <= 0) {
       setError('Enter a payment amount greater than zero.');
@@ -88,15 +99,13 @@ export default function InvoicesPage() {
       await apiFetch(`/invoices/${invoice.id}/payments`, {
         method: 'POST',
         body: JSON.stringify({
-          amount,
-          currency: invoice.currency,
-          paymentDate: new Date().toISOString(),
-          paymentMethod: 'BANK_TRANSFER',
+          amount: typed === undefined ? undefined : amount,
+          paymentMethod: paymentMethod[invoice.id] ?? 'BANK_TRANSFER',
           reference,
         }),
       });
       setNotice(`Payment of ${formatMoney(amount, invoice.currency)} recorded against ${invoice.invoiceNumber}.`);
-      setPaymentAmount((current) => ({ ...current, [invoice.id]: '' }));
+      setPaymentAmount(({ [invoice.id]: _amount, ...rest }) => rest);
       setPaymentReference((current) => ({ ...current, [invoice.id]: '' }));
       setError(null);
       await load();
@@ -240,11 +249,20 @@ export default function InvoicesPage() {
                             type="number"
                             min={0}
                             step="0.01"
-                            value={paymentAmount[invoice.id] ?? ''}
+                            value={paymentAmount[invoice.id] ?? String(Number(outstanding.toFixed(2)))}
                             onChange={(event) => setPaymentAmount((current) => ({ ...current, [invoice.id]: event.target.value }))}
                             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
-                            placeholder={String(outstanding.toFixed(2))}
                           />
+                        </label>
+                        <label className="flex-1 text-xs text-slate-600">
+                          Method
+                          <select
+                            value={paymentMethod[invoice.id] ?? 'BANK_TRANSFER'}
+                            onChange={(event) => setPaymentMethod((current) => ({ ...current, [invoice.id]: event.target.value }))}
+                            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900"
+                          >
+                            {PAYMENT_METHODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                          </select>
                         </label>
                         <label className="flex-1 text-xs text-slate-600">
                           Payment reference
@@ -257,7 +275,7 @@ export default function InvoicesPage() {
                         <button
                           type="button"
                           disabled={busy === invoice.id}
-                          onClick={() => pay(invoice)}
+                          onClick={() => pay(invoice, outstanding)}
                           className="rounded-xl bg-navy px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
                         >
                           Record payment

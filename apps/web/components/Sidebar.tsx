@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, BriefcaseBusiness, Building2, FileCheck2, Home, PackageCheck, PackageSearch, ReceiptText, ShieldCheck, Warehouse } from 'lucide-react';
+import { BarChart3, BriefcaseBusiness, Building2, FileCheck2, Home, PackageCheck, PackageSearch, ReceiptText, Repeat, ShieldCheck, Warehouse } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 const buyerItems = [
   { label: 'Home', href: '/', icon: Home },
   { label: 'Purchase Requests', href: '/purchase-requests', icon: BriefcaseBusiness },
+  { label: 'Templates & schedules', href: '/templates', icon: Repeat },
   { label: 'RFQs', href: '/rfqs', icon: PackageSearch },
   { label: 'Quotes', href: '/quotes', icon: ReceiptText },
   { label: 'Orders & deliveries', href: '/orders', icon: PackageCheck },

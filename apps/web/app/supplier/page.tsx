@@ -5,6 +5,8 @@ import { Sidebar } from '../../components/Sidebar';
 import { TopBar } from '../../components/TopBar';
 import { ApiError, apiFetch, formatDate, formatMoney, statusTone } from '../../lib/api';
 import { AttachmentUpload } from '../../components/AttachmentUpload';
+import { InvoiceForm } from '../../components/InvoiceForm';
+import { QuoteForm, QuotableRfq } from '../../components/QuoteForm';
 
 type SupplierDashboard = {
   openRfqs: number;
@@ -22,7 +24,7 @@ type SupplierDashboard = {
 type SupplierRfq = {
   invitationId: string;
   responseStatus: string;
-  rfq: { id: string; rfqNumber: string; title: string; status: string; quoteDeadline: string | null; currency: string };
+  rfq: QuotableRfq & { title: string; status: string; quoteDeadline: string | null };
   myQuotation: { id: string; status: string; total: string; currency: string } | null;
 };
 
@@ -55,6 +57,7 @@ export default function SupplierPortalPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [openForm, setOpenForm] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -79,6 +82,16 @@ export default function SupplierPortalPage() {
   useEffect(() => {
     load();
   }, []);
+
+  async function formSubmitted(message: string) {
+    setOpenForm(null);
+    setNotice(message);
+    setError(null);
+    await load();
+  }
+
+  const canQuote = (row: SupplierRfq) =>
+    !row.myQuotation && ['OPEN', 'QUOTES_RECEIVED'].includes(row.rfq.status) && (!row.rfq.quoteDeadline || new Date(row.rfq.quoteDeadline) > new Date());
 
   async function acknowledge(purchaseOrderId: string, poNumber: string) {
     try {
@@ -145,7 +158,13 @@ export default function SupplierPortalPage() {
                           ) : (
                             <span className={`badge ${statusTone(row.rfq.status)}`}>{row.rfq.status}</span>
                           )}
+                          {canQuote(row) && (
+                            <button type="button" className="btn-primary" onClick={() => setOpenForm(openForm === `quote-${row.rfq.id}` ? null : `quote-${row.rfq.id}`)}>
+                              {openForm === `quote-${row.rfq.id}` ? 'Close' : 'Prepare quote'}
+                            </button>
+                          )}
                         </div>
+                        {openForm === `quote-${row.rfq.id}` && <QuoteForm rfq={row.rfq} onSubmitted={formSubmitted} />}
                         {row.myQuotation && <AttachmentUpload entityType="QUOTATION" entityId={row.myQuotation.id} documentType="QUOTE" label="Quote attachment" />}
                       </div>
                     ))}
@@ -169,6 +188,11 @@ export default function SupplierPortalPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <span className={`badge ${statusTone(order.status)}`}>{order.status}</span>
+                          {['ACKNOWLEDGED', 'PROCESSING', 'DISPATCHED', 'PARTIALLY_DELIVERED', 'DELIVERED'].includes(order.status) && (
+                            <button type="button" className="btn-secondary" onClick={() => setOpenForm(openForm === `invoice-${order.id}` ? null : `invoice-${order.id}`)}>
+                              {openForm === `invoice-${order.id}` ? 'Close' : 'Create invoice'}
+                            </button>
+                          )}
                           {['ISSUED', 'SENT'].includes(order.status) && (
                             <button
                               type="button"
@@ -179,6 +203,7 @@ export default function SupplierPortalPage() {
                             </button>
                           )}
                         </div>
+                        {openForm === `invoice-${order.id}` && <InvoiceForm purchaseOrderId={order.id} onSubmitted={formSubmitted} />}
                       </div>
                     ))}
                   </div>

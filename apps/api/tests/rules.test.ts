@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INVOICE_TRANSITIONS, PO_TRANSITIONS, QUOTE_TRANSITIONS, canTransition, evaluateThreeWayMatch, isQuoteExpired } from '../src/lib/procurement-rules';
+import { INVOICE_TRANSITIONS, PO_TRANSITIONS, QUOTE_TRANSITIONS, UGANDA_VAT_RATE, advanceSchedule, calculateTotals, canTransition, evaluateThreeWayMatch, invoiceableLines, isQuoteExpired, nextOccurrence, paymentTermDays, resolveTax } from '../src/lib/procurement-rules';
 import { MAX_UPLOAD_BYTES, resolveStoragePath, validateUpload } from '../src/lib/uploads';
 
 const basePo = {
@@ -116,6 +116,68 @@ describe('three-way match rules', () => {
       },
     });
     expect(result.exceptions.map((exception) => exception.code)).toContain('UNMATCHED_INVOICE_LINE');
+  });
+});
+
+describe('Uganda VAT', () => {
+  it('applies the 18% standard rate when no tax is supplied', () => {
+    expect(UGANDA_VAT_RATE).toBe(0.18);
+    expect(resolveTax(1_000_000)).toBe(180_000);
+  });
+
+  it('respects an explicit tax amount, including zero for non-registered suppliers', () => {
+    expect(resolveTax(1_000_000, 0)).toBe(0);
+    expect(resolveTax(1_000_000, 50_000)).toBe(50_000);
+  });
+
+  it('never charges VAT on a negative taxable amount', () => {
+    expect(resolveTax(-100)).toBe(0);
+  });
+});
+
+describe('document arithmetic', () => {
+  it('totals lines, charges VAT on subtotal + delivery - discount', () => {
+    const totals = calculateTotals({ lines: [{ quantity: 3, unitPrice: 10_000 }, { quantity: 2, unitPrice: null }], deliveryFee: 5_000, discount: 5_000 });
+    expect(totals).toEqual({ lineTotals: [30_000, 0], subtotal: 30_000, deliveryFee: 5_000, discount: 5_000, tax: 5_400, total: 35_400 });
+    expect(calculateTotals({ lines: [{ quantity: 1, unitPrice: 100 }], tax: 0 }).total).toBe(100);
+  });
+
+  it('reads payment terms', () => {
+    expect(paymentTermDays('NET30')).toBe(30);
+    expect(paymentTermDays('Net 45 days')).toBe(45);
+    expect(paymentTermDays('Cash on delivery')).toBe(0);
+    expect(paymentTermDays(undefined)).toBe(30);
+  });
+
+  it('bills received quantities not yet invoiced, falling back to dispatched', () => {
+    const items = [{ id: 'a', name: 'Paper', quantity: 10, unitPrice: 5 }, { id: 'b', name: 'Pens', quantity: 4, unitPrice: 2 }];
+    const dispatchOnly = invoiceableLines({ items, deliveries: [{ kind: 'DISPATCH', items: [{ purchaseOrderItemId: 'a', orderedQuantity: 6, receivedQuantity: 0, rejectedQuantity: 0 }] }], invoices: [] });
+    expect(dispatchOnly.basis).toBe('DISPATCHED');
+    expect(dispatchOnly.lines.map((line) => line.quantity)).toEqual([6, 0]);
+
+    const received = invoiceableLines({
+      items,
+      deliveries: [{ kind: 'RECEIPT', items: [{ purchaseOrderItemId: 'a', orderedQuantity: 10, receivedQuantity: 9, rejectedQuantity: 1 }, { purchaseOrderItemId: 'b', orderedQuantity: 4, receivedQuantity: 4, rejectedQuantity: 0 }] }],
+      invoices: [
+        { status: 'APPROVED', items: [{ purchaseOrderItemId: 'a', quantity: 5 }] },
+        { status: 'REJECTED', items: [{ purchaseOrderItemId: 'b', quantity: 4 }] },
+      ],
+    });
+    expect(received.basis).toBe('RECEIVED');
+    expect(received.lines.map((line) => line.quantity)).toEqual([3, 4]);
+  });
+});
+
+describe('recurring schedules', () => {
+  it('steps weekly, monthly and quarterly, clamping month ends', () => {
+    expect(nextOccurrence(new Date('2026-01-31T08:00:00Z'), 'MONTHLY').toISOString()).toBe('2026-02-28T08:00:00.000Z');
+    expect(nextOccurrence(new Date('2026-11-30T08:00:00Z'), 'QUARTERLY').toISOString()).toBe('2027-02-28T08:00:00.000Z');
+    expect(nextOccurrence(new Date('2026-09-14T08:00:00Z'), 'WEEKLY').toISOString()).toBe('2026-09-21T08:00:00.000Z');
+  });
+
+  it('skips missed periods instead of building a backlog', () => {
+    const next = advanceSchedule(new Date('2026-01-01T00:00:00Z'), 'MONTHLY', new Date('2026-05-15T00:00:00Z'));
+    expect(next.toISOString()).toBe('2026-06-01T00:00:00.000Z');
   });
 });
 
