@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
+import { verifyAccessToken } from '../lib/access-token';
 import { prisma } from '../db';
 import { env } from '../lib/env';
 
@@ -13,7 +13,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
   if (!token) return res.status(401).json({ message: 'Authentication required' });
 
   try {
-    const payload = jwt.verify(token, env.jwtAccessSecret) as jwt.JwtPayload;
+    const payload = verifyAccessToken(token, env.jwtAccessSecret);
     const user = await prisma.user.findUnique({
       where: { id: String(payload.sub) },
       include: { organizationMembers: { take: 1 } },
