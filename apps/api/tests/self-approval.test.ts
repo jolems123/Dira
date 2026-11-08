@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { api, BASE, registerOrg, auth, setRole } from './helpers';
+import { api, BASE, registerOrg, auth } from './helpers';
 
 describe('segregation of duties', () => {
   it('blocks self-approval even when requester is an OWNER', async () => {
