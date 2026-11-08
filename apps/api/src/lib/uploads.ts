@@ -49,7 +49,8 @@ export function validateUpload(candidate: UploadCandidate): UploadValidationResu
   const baseName = path.basename(rawName);
   if (baseName !== rawName) errors.push('Filename must not contain a path');
 
-  if (candidate.size <= 0) errors.push('File is empty');
+  if (!Number.isSafeInteger(candidate.size) || candidate.size <= 0) errors.push('File is empty or has an invalid size');
+  if (!candidate.content || candidate.content.length !== candidate.size) errors.push('File bytes must match the declared size');
   if (candidate.size > MAX_UPLOAD_BYTES) errors.push(`File exceeds the ${MAX_UPLOAD_BYTES} byte limit`);
 
   const extension = path.extname(baseName).toLowerCase();
@@ -72,6 +73,10 @@ export function validateUpload(candidate: UploadCandidate): UploadValidationResu
   }
 
   if (candidate.content && candidate.content.length > 0) {
+    if (extension === '.webp' && (candidate.content.length < 12 || candidate.content.toString('ascii', 0, 4) !== 'RIFF' || candidate.content.toString('ascii', 8, 12) !== 'WEBP')) {
+      errors.push('File content does not match its declared type');
+    }
+    if (extension === '.csv' && candidate.content.includes(0)) errors.push('CSV contains binary null bytes');
     const rule = MAGIC_BYTES.find((entry) => entry.extensions.includes(extension));
     if (rule) {
       const header = [...candidate.content.subarray(0, rule.signature.length)];
