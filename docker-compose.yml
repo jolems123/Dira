@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: dira_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: Kampala2020@&
+      POSTGRES_PASSWORD: ${DIRA_DEV_DB_PASSWORD:?Set DIRA_DEV_DB_PASSWORD in your local .env}
     ports:
       - "5432:5432"
     volumes:
@@ -28,7 +28,7 @@ services:
         condition: service_healthy
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@dira.local
-      PGADMIN_DEFAULT_PASSWORD: Kampala2020@&
+      PGADMIN_DEFAULT_PASSWORD: ${DIRA_DEV_PGADMIN_PASSWORD:?Set DIRA_DEV_PGADMIN_PASSWORD in your local .env}
     ports:
       - "5050:80"
     volumes:
