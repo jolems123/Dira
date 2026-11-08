@@ -49,3 +49,9 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - No PR merge attempted: PR #3 remains draft with mergeability `unstable`, and critical tenant isolation/approval/refresh isolation are not fully verified.
 - Reconfirmed `jolems123-patch-1` 0 ahead/10 behind main, `uganda-currency` identical; both safe to delete but current connector lacks delete-ref operation.
 - NEEDS ME: recover CI job logs/runner availability, rotate any previously used historical secrets, provide final plan prices and reviewed jurisdictional tax rules, confirm Railway/S3/email/legal settings. No live billing activation approved.
+
+## 2026-11-09 document-response hardening and CI evidence
+- Added `apps/api/tests/document-response.test.ts` first, then `apps/api/src/lib/document-response.ts`, and changed `apps/api/src/routes/documents.ts` to serve private documents as `attachment` with `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff`, and sanitized filenames. This reduces active content rendering, response-header injection, and browser caching of sensitive procurement attachments. **New tests not yet verified by CI.**
+- PR #3 head `102ed714` had GitHub Actions run #23 `42531676298`: completed **failure**, job `128887022466`; steps API returned `[]`, log retrieval returned `BlobNotFound` 404. No reliable failure diagnosis available; do not call CI green or merge. Subsequent document commits trigger a new run; check its outcome next.
+- Branch ancestry reconfirmed: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` 0 ahead/0 behind. Connector still has no delete-ref action.
+- NEEDS ME remains: historical credential rotation; final plan pricing; jurisdiction-specific reviewed tax settings; Railway/S3/email/legal settings; recover usable CI runner logs. No live billing or money movement authorized.
