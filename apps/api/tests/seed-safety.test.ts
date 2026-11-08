@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 describe('development seed safety', () => {
   it('refuses to run with production environment settings', () => {
-    const root = resolve(__dirname, '..');
+    const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
     const result = spawnSync(process.execPath, [resolve(root, '../../node_modules/tsx/dist/cli.mjs'), 'prisma/seed.ts'], {
       cwd: root,
       env: { ...process.env, NODE_ENV: 'production', DIRA_ALLOW_DEV_SEED: '1' },
