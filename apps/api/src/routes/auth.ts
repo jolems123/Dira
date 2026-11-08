@@ -99,18 +99,49 @@ authRouter.post('/login', async (req, res, next) => {
   }
 });
 
-authRouter.post('/refresh', async (req, res) => {
-  const token = z.string().safeParse(refreshTokenFromRequest(req));
-  if (!token.success) return res.status(400).json({ message: 'Refresh token is required' });
-  const stored = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(token.data) } });
-  if (!stored || stored.revokedAt || stored.expiresAt <= new Date()) return res.status(401).json({ message: 'Refresh token is invalid' });
-  const issued = tokens(stored.userId);
-  await prisma.$transaction([
-    prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } }),
-    prisma.refreshToken.create({ data: { userId: stored.userId, tokenHash: hashToken(issued.refreshToken), expiresAt: new Date(Date.now() + 7 * 86400000) } }),
-  ]);
-  setRefreshCookie(res, issued.refreshToken);
-  return res.json({ accessToken: issued.accessToken });
+authRouter.post('/refresh', async (req, res, next) => {
+  try {
+    const token = z.string().safeParse(refreshTokenFromRequest(req));
+    if (!token.success) return res.status(400).json({ message: 'Refresh token is required' });
+    const stored = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(token.data) } });
+    if (!stored) return res.status(401).json({ message: 'Refresh token is invalid' });
+
+    // A previously rotated credential is evidence of replay. Revoke every active
+    // refresh credential for this account so the rotated child cannot survive.
+    if (stored.revokedAt) {
+      await prisma.refreshToken.updateMany({
+        where: { userId: stored.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      return res.status(401).json({ message: 'Refresh token replay detected; sign in again' });
+    }
+    if (stored.expiresAt <= new Date()) return res.status(401).json({ message: 'Refresh token has expired' });
+
+    const user = await prisma.user.findUnique({ where: { id: stored.userId }, select: { status: true } });
+    if (!user || user.status !== 'ACTIVE') return res.status(401).json({ message: 'Session invalid' });
+
+    const issued = tokens(stored.userId);
+    // Compare-and-swap ensures that concurrent refresh calls never both succeed.
+    const succeeded = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.refreshToken.updateMany({
+        where: { id: stored.id, revokedAt: null, expiresAt: { gt: new Date() } },
+        data: { revokedAt: new Date() },
+      });
+      if (claimed.count !== 1) return false;
+      await tx.refreshToken.create({
+        data: { userId: stored.userId, tokenHash: hashToken(issued.refreshToken), expiresAt: new Date(Date.now() + 7 * 86400000) },
+      });
+      return true;
+    });
+    if (!succeeded) {
+      await prisma.refreshToken.updateMany({ where: { userId: stored.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      return res.status(401).json({ message: 'Refresh token replay detected; sign in again' });
+    }
+    setRefreshCookie(res, issued.refreshToken);
+    return res.json({ accessToken: issued.accessToken });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 authRouter.post('/logout', requireAuth, async (req: AuthenticatedRequest, res) => {
