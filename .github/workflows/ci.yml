@@ -1,0 +1,47 @@
+name: Dira checks
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dira
+          POSTGRES_PASSWORD: dira_ci_only
+          POSTGRES_DB: dira_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dira -d dira_ci"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://dira:dira_ci_only@localhost:5432/dira_ci?schema=public
+      JWT_ACCESS_SECRET: ci-only-access-token-secret-longer-than-32-chars
+      JWT_REFRESH_SECRET: ci-only-refresh-token-secret-longer-than-32-chars
+      WEB_ORIGIN: http://localhost:3000
+      API_URL: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npm run db:generate
+      - name: Apply migrations to disposable CI database
+        run: npx prisma migrate deploy --schema apps/api/prisma/schema.prisma
+      - name: Check types
+        run: npm run typecheck
+      - name: API tests
+        run: npm test --workspace apps/api
+      - name: Build
+        run: npm run build
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
