@@ -3,7 +3,7 @@ import { validateProductionEnvironment } from '../src/lib/env-validation';
 
 const valid = {
   NODE_ENV: 'production', DATABASE_URL: 'postgresql://example.invalid/dira?sslmode=require',
-  JWT_ACCESS_SECRET: 'a'.repeat(48), JWT_REFRESH_SECRET: 'b'.repeat(48),
+  JWT_ACCESS_SECRET: 'aB3!7xY9pQ2@kL5#nM8$rT4%uV6&wZ1*eF0?gH3+'.slice(0,40), JWT_REFRESH_SECRET: 'bC4@8yZ0qR3#lM6$oN9%sU5^vW7*xA2(fG1)hJ4='.slice(0,40),
   WEB_ORIGIN: 'https://dira.example', API_URL: 'https://api.dira.example',
   FILE_STORAGE_PROVIDER: 's3', FILE_S3_REGION: 'us-east-1',
   FILE_S3_BUCKET: 'private-example', FILE_S3_ACCESS_KEY_ID: 'example-key',
