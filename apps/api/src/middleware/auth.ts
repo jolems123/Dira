@@ -16,9 +16,10 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     const payload = verifyAccessToken(token, env.jwtAccessSecret);
     const user = await prisma.user.findUnique({
       where: { id: String(payload.sub) },
-      include: { organizationMembers: { take: 1 } },
+      include: { organizationMembers: { where: { status: 'ACTIVE' }, take: 1, orderBy: { createdAt: 'asc' } } },
     });
     if (!user || user.status !== 'ACTIVE') return res.status(401).json({ message: 'Invalid session' });
+    if (user.organizationMembers.length === 0) return res.status(403).json({ message: 'Active organisation membership required' });
     req.user = {
       id: user.id,
       organizationId: user.organizationMembers[0]?.organizationId,
