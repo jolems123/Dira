@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { Request, Response, Router } from 'express';
 import crypto from 'node:crypto';
-import jwt from 'jsonwebtoken';
+import { signAccessToken } from '../lib/access-token';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { env } from '../lib/env';
@@ -24,7 +24,7 @@ function publicUser(user: { id: string; firstName: string; lastName: string; ema
 }
 
 function tokens(userId: string) {
-  const accessToken = jwt.sign({ sub: userId }, env.jwtAccessSecret, { expiresIn: '15m' });
+  const accessToken = signAccessToken(userId, env.jwtAccessSecret);
   const refreshToken = crypto.randomBytes(48).toString('hex');
   return { accessToken, refreshToken };
 }
