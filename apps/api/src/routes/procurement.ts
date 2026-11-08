@@ -278,6 +278,7 @@ procurementRouter.post('/purchase-requests/:id/approve', requireRole('OWNER', 'A
     const request = await prisma.purchaseRequest.findFirst({ where: { id: String(req.params.id), organizationId: req.user!.organizationId } });
     if (!request) return res.status(404).json({ message: 'Purchase request not found' });
     if (request.status !== 'SUBMITTED') return res.status(409).json({ message: `Cannot approve a ${request.status.toLowerCase()} request` });
+    if (request.requestedBy === req.user!.id) return res.status(403).json({ message: 'Requesters cannot approve their own purchase requests' });
     const [, updated] = await prisma.$transaction([
       prisma.approvalDecision.create({
         data: {
