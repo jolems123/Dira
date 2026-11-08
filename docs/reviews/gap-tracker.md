@@ -28,6 +28,6 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - fix/dira-security: working branch. Never merge to main automatically.
 
 ## 2026-11-08 security work log
-- `fix/dira-security`: positioning and tracker created; production environment validator; source-code database fallback sanitized (old history still contains a password-like value); JWT issuer/audience/algorithm enforcement; refresh credential compare-and-swap and replay revocation; self-approval request gate; opt-in dev seed with hard production refusal; PR CI workflow. **Do not mark verified until CI completes successfully**.
+- `fix/dira-security`: positioning and tracker created; production environment validator; source-code database fallback sanitized (old history still contains password-like values; rotate any reused credentials); JWT issuer/audience/algorithm enforcement; refresh credential compare-and-swap and replay revocation; self-approval request gate; opt-in dev seed with hard production refusal; sanitized .env.example and local Docker Compose credentials; README updated; PR CI workflow. **Do not mark verified until CI completes successfully**.
 - Refresh sessions presently have no durable per-device session-family identifier; replay handling revokes all user refresh credentials. Stronger per-session isolation is future work.
 - Required auth cross-tenant/route tests, PO approval-limit rules, uploads and scan evidence remain unverified.
