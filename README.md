@@ -57,12 +57,9 @@ The app is structured as a monorepo:
 - API: http://localhost:4000
 - pgAdmin: http://localhost:5050
 
-## Development-only demo login
+## Development accounts
 
-The seeded demo buyer account is:
-
-- Email: `buyer@dira.local`
-- Password: `Password123!`
+There are no production demo accounts. The optional development seed is explicitly opt-in and must never run in production. Do not rely on documented shared credentials; create private local test identities when needed.
 
 ## Payment recording, not payment processing
 
@@ -71,5 +68,5 @@ Dira records payment details and references for audit and reconciliation. It doe
 ## Notes
 
 - The local database is configured for a Docker-backed PostgreSQL setup and is intended for rapid development.
-- The repository is intentionally kept focused on a functional local procurement foundation rather than a fully generic enterprise platform.
+- The current implementation is a procurement foundation; global enterprise functionality is planned and must be verified against the release gap tracker before launch.
 - The app currently covers the core buyer-side flow: request submission, approval, RFQ issuance, supplier selection, quote handling, and award-to-PO progression.
