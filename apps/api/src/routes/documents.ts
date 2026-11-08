@@ -78,7 +78,9 @@ documentsRouter.get('/:id/content', async (req: AuthenticatedRequest, res, next)
     const content = await storage.get(document.storageKey);
     if (checksum(content) !== document.checksum) return res.status(409).json({ message: 'Document integrity check failed' });
     await prisma.auditLog.create({ data: { organizationId: authorized.organizationId, userId: req.user!.id, action: 'DOCUMENT_VIEWED', entityType: 'Document', entityId: document.id } });
-    res.type(document.mimeType).set('Content-Disposition', `inline; filename="${document.originalFilename.replace(/["\r\n]/g, '')}"`);
+    res.set('Cache-Control', 'private, no-store');
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.type(document.mimeType).set('Content-Disposition', `attachment; filename="${safeAttachmentName(document.originalFilename)}"`);
     return res.send(content);
   } catch (caught) { return next(caught); }
 });
