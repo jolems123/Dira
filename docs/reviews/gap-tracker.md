@@ -43,3 +43,9 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Latest observed security PR head before changes `e630301` had GitHub Actions run `42521940250` queued. After upload commits, no workflow run was yet returned for `7efbcdc`; do not infer success.
 - Reconfirmed `jolems123-patch-1` zero ahead/10 behind and `uganda-currency` zero ahead/zero behind main. Neither branch has unique commits; deletion capability remains unavailable.
 - No merge attempted. Remaining critical tenant isolation, refresh session-family isolation, PO approval limits, invoice match enforcement, storage access tests, and operational credential rotation still block production readiness.
+
+## 2026-11-09 CI failure investigation
+- Security PR #3 head `6f9f054cf74af238d507ae1602ff163e067414ac` has GitHub Actions `Dira checks` run `42526909659` (run #22) **completed: FAILURE**; job `128872444767` failed. The connector's job-steps endpoint returned an empty array, and the log download returned a GitHub/Azure `BlobNotFound` 404. The failing command is therefore **unknown**; do not assume which test failed or claim remediation. Inspect the workflow run in GitHub Actions and retrieve logs when available before making a speculative CI change.
+- No PR merge attempted: PR #3 remains draft with mergeability `unstable`, and critical tenant isolation/approval/refresh isolation are not fully verified.
+- Reconfirmed `jolems123-patch-1` 0 ahead/10 behind main, `uganda-currency` identical; both safe to delete but current connector lacks delete-ref operation.
+- NEEDS ME: recover CI job logs/runner availability, rotate any previously used historical secrets, provide final plan prices and reviewed jurisdictional tax rules, confirm Railway/S3/email/legal settings. No live billing activation approved.
