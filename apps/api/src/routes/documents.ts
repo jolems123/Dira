@@ -5,6 +5,7 @@ import { prisma } from '../db';
 import { AuthenticatedRequest, requireAuth } from '../middleware/auth';
 import { validateUpload } from '../lib/uploads';
 import { checksum, storage } from '../lib/storage';
+import { safeAttachmentName } from '../lib/document-response';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
 const metadataSchema = z.object({
