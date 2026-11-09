@@ -93,7 +93,7 @@ export function invoiceableLines(input: {
     for (const item of delivery.items) {
       if (!item.purchaseOrderItemId) continue;
       if (delivery.kind === 'RECEIPT') {
-        received.set(item.purchaseOrderItemId, (received.get(item.purchaseOrderItemId) ?? 0) + num(item.receivedQuantity) - num(item.rejectedQuantity));
+        received.set(item.purchaseOrderItemId, (received.get(item.purchaseOrderItemId) ?? 0) + Math.max(0, num(item.receivedQuantity) - num(item.rejectedQuantity)));
       } else {
         dispatched.set(item.purchaseOrderItemId, (dispatched.get(item.purchaseOrderItemId) ?? 0) + num(item.orderedQuantity));
       }
