@@ -67,3 +67,9 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - PR #3 previous head `7d97e33` had GitHub Actions run #30 `42542006271`: **failure**, job `128918773845`. Steps API returned `[]`; log fetch failed with `BlobNotFound`. Root cause remains unknown; no CI pass claimed for the new commits. Inspect next run and runner availability before merge.
 - Branch comparisons reconfirmed `jolems123-patch-1` 0 ahead/10 behind, `uganda-currency` 0 ahead/0 behind main; no branch deletion action exposed.
 - NEEDS ME: actionable CI logs/runner access; historical secret rotation; final plan prices and jurisdiction-reviewed tax profiles; Railway, private S3, email and legal sign-off. Security PR stays draft until all critical controls and checks pass. No live payment processing or billing activation.
+
+## 2026-11-09 receipt and CI remediation
+- PR #3 head `9e0610e` CI run #33 (`42547236641`) completed **failure**; job `128934755067` failed with no step details in the connector. This is not passing evidence.
+- Added failing-first regression for malformed receipt rows where rejected quantity exceeds received quantity (`3a6ffc9`), then clamped net receipt quantities to nonnegative in `invoiceableLines` (`6db3d3d`). This prevents a negative delivered quantity from flowing into invoice previews. Still needs CI confirmation and upstream receipt-validation review.
+- Identified and corrected an existing positive PDF upload test fixture whose declared size (2048) differed from its actual six-byte payload, incompatible with the strict payload-length check (`377c55f`). This is a **plausible test failure**, not proven to be the CI root cause because logs remain unavailable.
+- NEEDS ME unchanged: historical credential rotation, final plan prices, reviewed country tax profiles, Railway/private S3/email/legal signoff, CI runner logs. No merge, no live billing or money movement.
