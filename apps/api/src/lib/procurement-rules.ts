@@ -394,8 +394,19 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   }
 
   const lines = input.purchaseOrder.items.map((poItem) => {
-    const ordered = num(poItem.quantity);
-    const orderedUnitPrice = num(poItem.unitPrice);
+    const rawOrdered = num(poItem.quantity);
+    const rawUnitPrice = num(poItem.unitPrice);
+    if (!Number.isFinite(rawOrdered) || rawOrdered < 0 || !Number.isFinite(rawUnitPrice) || rawUnitPrice < 0) {
+      exceptions.push({
+        code: 'INVALID_PO_LINE',
+        severity: 'BLOCKING',
+        message: 'Purchase order contains an invalid quantity or unit price',
+        details: { purchaseOrderItemId: poItem.id },
+      });
+    }
+    // Historical corrupt PO rows must not yield NaN/Infinity in match output.
+    const ordered = Number.isFinite(rawOrdered) && rawOrdered >= 0 ? rawOrdered : 0;
+    const orderedUnitPrice = Number.isFinite(rawUnitPrice) && rawUnitPrice >= 0 ? rawUnitPrice : 0;
     const received = receivedByLine.get(poItem.id) ?? 0;
     if (Number.isFinite(ordered) && ordered >= 0 && received > ordered + QTY_EPSILON) {
       exceptions.push({
