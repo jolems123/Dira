@@ -1,3 +1,4 @@
+import { consumeResetToken } from '../lib/password-reset';
 import { parseRefreshCookie } from '../lib/refresh-cookie';
 import bcrypt from 'bcryptjs';
 import { Request, Response, Router } from 'express';
@@ -195,11 +196,10 @@ authRouter.post('/reset-password', async (req, res, next) => {
     const reset = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
     if (!reset || reset.usedAt || reset.expiresAt <= new Date()) return res.status(400).json({ message: 'Reset token is invalid or expired' });
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
-    await prisma.$transaction([
-      prisma.user.update({ where: { id: reset.userId }, data: { passwordHash } }),
-      prisma.passwordResetToken.update({ where: { id: reset.id }, data: { usedAt: new Date() } }),
-      prisma.refreshToken.updateMany({ where: { userId: reset.userId, revokedAt: null }, data: { revokedAt: new Date() } }),
-    ]);
+    const consumed = await prisma.$transaction((tx) =>
+      consumeResetToken(tx, { id: reset.id, userId: reset.userId, passwordHash, now: new Date() }),
+    );
+    if (!consumed) return res.status(400).json({ message: 'Reset token is invalid or expired' });
     return res.json({ message: 'Password reset successfully' });
   } catch (error) {
     return next(error);
