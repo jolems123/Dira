@@ -266,6 +266,7 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   const exceptions: MatchException[] = [];
   const requireReceipt = input.requireReceipt ?? true;
 
+  const poItemIds = new Set(input.purchaseOrder.items.map((item) => item.id));
   const receivedByLine = new Map<string, number>();
   let unlinkedReceived = 0;
   for (const item of input.receiptItems) {
@@ -278,6 +279,15 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
         code: 'INVALID_RECEIPT_QUANTITY',
         severity: 'BLOCKING',
         message: 'Goods receipt contains invalid received or rejected quantities',
+        details: { purchaseOrderItemId: item.purchaseOrderItemId },
+      });
+      continue;
+    }
+    if (item.purchaseOrderItemId && !poItemIds.has(item.purchaseOrderItemId)) {
+      exceptions.push({
+        code: 'UNMATCHED_RECEIPT_LINE',
+        severity: 'BLOCKING',
+        message: 'Goods receipt references an item outside this purchase order',
         details: { purchaseOrderItemId: item.purchaseOrderItemId },
       });
       continue;
@@ -300,6 +310,15 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
         code: 'INVALID_INVOICE_QUANTITY',
         severity: 'BLOCKING',
         message: 'Invoice contains invalid quantities or unit prices',
+        details: { purchaseOrderItemId: item.purchaseOrderItemId },
+      });
+      continue;
+    }
+    if (item.purchaseOrderItemId && !poItemIds.has(item.purchaseOrderItemId)) {
+      exceptions.push({
+        code: 'UNMATCHED_INVOICE_LINE',
+        severity: 'BLOCKING',
+        message: 'Invoice references an item outside this purchase order',
         details: { purchaseOrderItemId: item.purchaseOrderItemId },
       });
       continue;
