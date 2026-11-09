@@ -23,6 +23,7 @@ import {
 import { estimateBudget, repeatRequest, supplierSuggestions } from '../lib/repeat-procurement';
 import { runThreeWayMatch } from '../lib/three-way-match';
 import { validReceiptQuantities } from '../lib/receipt-quantities';
+import { hasUniqueOrderLineIds } from '../lib/unique-order-lines';
 import { validateQuotedRfqItems } from '../lib/quote-item-validation';
 
 const requestSchema = z.object({
@@ -95,7 +96,7 @@ const dispatchSchema = z.object({
   items: z.array(z.object({
     purchaseOrderItemId: z.string().min(1),
     quantity: z.number().positive(),
-  })).min(1),
+  })).min(1).refine(hasUniqueOrderLineIds, { message: 'Duplicate purchase order item in dispatch' }),
 });
 
 const goodsReceiptSchema = z.object({
@@ -109,7 +110,7 @@ const goodsReceiptSchema = z.object({
     receivedQuantity: z.number().nonnegative(),
     rejectedQuantity: z.number().nonnegative().default(0),
     condition: z.string().max(200).optional(),
-  })).min(1).refine((items) => items.every(validReceiptQuantities), { message: 'Rejected quantity cannot exceed received quantity' }),
+  })).min(1).refine(hasUniqueOrderLineIds, { message: 'Duplicate purchase order item in receipt' }).refine((items) => items.every(validReceiptQuantities), { message: 'Rejected quantity cannot exceed received quantity' }),
 });
 
 const invoiceSchema = z.object({
