@@ -153,3 +153,10 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - GitHub Actions latest observed run `42604163848` for head `478897f`: completed FAILURE. No evidence that new commits passed; owner reports runner billing restrictions. Do not bypass required checks or merge draft PR #3.
 - Rechecked main comparisons: `jolems123-patch-1` ahead 0 / behind 10, `uganda-currency` ahead 0 / behind 0. Deletion unsupported by available connector; left intact.
 - NEEDS ME: executable independent test runner with disposable PostgreSQL; production secret rotation; final pricing, reviewed country tax profiles, Paddle sandbox merchant credentials, Railway/private S3/email setup, legal review. All other tracker gaps remain open as indicated. Live supplier payments and subscription billing remain disabled.
+
+## 2026-11-09 — three-way-match fail-closed validation
+- Regression tests committed first (`3ffe15a`) for receipt rejection greater than receipt quantity and negative/nonfinite invoice line quantities.
+- Implementation (`9473dbd`) adds BLOCKING `INVALID_RECEIPT_QUANTITY` and `INVALID_INVOICE_QUANTITY` exceptions to three-way matching and excludes invalid receipt/invoice lines from trusted aggregates. This closes a gap between receipt input validation and invoice matching, but requires integration tests to establish route-level enforcement.
+- Verification: latest inspected pre-change GitHub Actions run `42611303806` failed with job `checks` and **zero steps**; not an application-test result. Full suite, PostgreSQL concurrency, route authorization and E2E checks **NOT RUN**. PR #3 remains draft and unmerged.
+- Branch ancestry rechecked via compare API: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` 0 ahead/0 behind. Connector does not expose deletion.
+- NEEDS ME: functioning isolated test runner with disposable PostgreSQL, tenant-isolation and approval-policy review, country-specific tax rules, final plan prices, Paddle sandbox credentials (no live billing), private S3, Railway environment, email domain, legal/privacy review, and rotation of any historical secrets. No production database or live payments touched.
