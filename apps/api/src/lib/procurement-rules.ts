@@ -93,9 +93,9 @@ export function invoiceableLines(input: {
     for (const item of delivery.items) {
       if (!item.purchaseOrderItemId) continue;
       if (delivery.kind === 'RECEIPT') {
-        received.set(item.purchaseOrderItemId, (received.get(item.purchaseOrderItemId) ?? 0) + Math.max(0, num(item.receivedQuantity) - num(item.rejectedQuantity)));
+        received.set(item.purchaseOrderItemId, (received.get(item.purchaseOrderItemId) ?? 0) + Math.max(0, num(item.receivedQuantity)) - Math.min(Math.max(0, num(item.rejectedQuantity)), Math.max(0, num(item.receivedQuantity))));
       } else {
-        dispatched.set(item.purchaseOrderItemId, (dispatched.get(item.purchaseOrderItemId) ?? 0) + num(item.orderedQuantity));
+        dispatched.set(item.purchaseOrderItemId, (dispatched.get(item.purchaseOrderItemId) ?? 0) + Math.max(0, num(item.orderedQuantity)));
       }
     }
   }
@@ -104,7 +104,7 @@ export function invoiceableLines(input: {
     if (NON_BILLING_INVOICE_STATUSES.includes(invoice.status)) continue;
     for (const item of invoice.items) {
       if (!item.purchaseOrderItemId) continue;
-      invoiced.set(item.purchaseOrderItemId, (invoiced.get(item.purchaseOrderItemId) ?? 0) + num(item.quantity));
+      invoiced.set(item.purchaseOrderItemId, (invoiced.get(item.purchaseOrderItemId) ?? 0) + Math.max(0, num(item.quantity)));
     }
   }
   const anyReceipt = received.size > 0;
