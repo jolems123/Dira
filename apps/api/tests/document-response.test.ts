@@ -14,4 +14,10 @@ describe('document response filename safety', () => {
   it('strips control bytes and null characters', () => {
     expect(safeAttachmentName('a\0b\tc.pdf')).toBe('a_b_c.pdf');
   });
+  it('removes Unicode bidi override characters used to spoof extensions', () => {
+    expect(safeAttachmentName('invoice\u202Efdp.exe')).toBe('invoicefdp.exe');
+  });
+  it('removes Unicode line and paragraph separators', () => {
+    expect(safeAttachmentName('invoice\u2028X-Fake.pdf')).toBe('invoiceX-Fake.pdf');
+  });
 });
