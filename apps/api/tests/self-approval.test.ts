@@ -15,6 +15,19 @@ describe('segregation of duties', () => {
     expect(approval.status).toBe(403);
   });
 
+  it('blocks a requester from rejecting their own submitted request', async () => {
+    const actor = await registerOrg('BUYER', 'OwnRejection');
+    const created = await api().post(`${BASE}/purchase-requests`).set(auth(actor)).send({
+      title: 'Equipment replacement', department: 'Operations',
+      items: [{ name: 'Printer', quantity: 1, estimatedUnitPrice: 300 }],
+    });
+    expect(created.status).toBe(201);
+    const id = created.body.id;
+    expect((await api().post(`${BASE}/purchase-requests/${id}/submit`).set(auth(actor))).status).toBe(200);
+    const rejected = await api().post(`${BASE}/purchase-requests/${id}/reject`).set(auth(actor)).send({});
+    expect(rejected.status).toBe(403);
+  });
+
   it('permits approval by a different authorised member of the same organisation', async () => {
     const requester = await registerOrg('BUYER', 'Separation');
     const approver = await registerOrg('BUYER', 'OtherApprover');
