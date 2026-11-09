@@ -61,3 +61,9 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Corrected `apps/api/tests/document-response.test.ts` to exercise actual CR/LF, backslash traversal and NUL/tab characters instead of literal escaped text. Commit `24171a2`. This corrects test coverage but does **not** establish a CI pass or fix the unknown runner failure.
 - PR #3 remains draft and mergeability `unstable`; no merge or production deployment. Security isolation, approval limits and full global phases remain open.
 - NEEDS ME: obtain actionable CI failure logs or restore GitHub runner availability; rotate previously used historical credentials; approve prices and country tax rules; configure Railway/private S3/email and legal review.
+
+## 2026-11-09 Unicode attachment security and CI recheck
+- Added regression tests first (`26b2488`) for Unicode right-to-left override and Unicode line separators in download filenames, then stripped Unicode bidi/format controls (`87f3512`) in `safeAttachmentName`. Prevents misleading extensions in browser download dialogs; new tests **not yet verified**.
+- PR #3 previous head `7d97e33` had GitHub Actions run #30 `42542006271`: **failure**, job `128918773845`. Steps API returned `[]`; log fetch failed with `BlobNotFound`. Root cause remains unknown; no CI pass claimed for the new commits. Inspect next run and runner availability before merge.
+- Branch comparisons reconfirmed `jolems123-patch-1` 0 ahead/10 behind, `uganda-currency` 0 ahead/0 behind main; no branch deletion action exposed.
+- NEEDS ME: actionable CI logs/runner access; historical secret rotation; final plan prices and jurisdiction-reviewed tax profiles; Railway, private S3, email and legal sign-off. Security PR stays draft until all critical controls and checks pass. No live payment processing or billing activation.
