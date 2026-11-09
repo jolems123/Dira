@@ -7,8 +7,13 @@ export function num(value: Decimalish): number {
   return Number(value);
 }
 
+/** Decimal ROUND_HALF_UP (4), avoiding binary floating-point rounding in money. */
+function moneyDecimal(value: number | Prisma.Decimal): Prisma.Decimal {
+  return new Prisma.Decimal(value).toDecimalPlaces(2, 4);
+}
+
 export function round2(value: number): number {
-  return Number(value.toFixed(2));
+  return moneyDecimal(value).toNumber();
 }
 
 /** Uganda standard-rate VAT (VAT Act, Cap. 349). */
@@ -33,13 +38,26 @@ export interface PricedLine {
  * VAT is charged on subtotal + delivery - discount unless an explicit tax amount is given.
  */
 export function calculateTotals(input: { lines: PricedLine[]; deliveryFee?: number; discount?: number; tax?: number }) {
-  const lineTotals = input.lines.map((line) => round2(line.quantity * (line.unitPrice ?? 0)));
-  const subtotal = round2(lineTotals.reduce((sum, value) => sum + value, 0));
-  const deliveryFee = round2(input.deliveryFee ?? 0);
-  const discount = round2(input.discount ?? 0);
-  const tax = resolveTax(subtotal + deliveryFee - discount, input.tax);
-  const total = round2(subtotal + tax + deliveryFee - discount);
-  return { lineTotals, subtotal, deliveryFee, discount, tax, total };
+  // Round individual extended prices first, then add as exact decimal values.
+  const lineAmounts = input.lines.map((line) =>
+    moneyDecimal(new Prisma.Decimal(line.quantity).mul(line.unitPrice ?? 0)));
+  const lineTotals = lineAmounts.map((amount) => amount.toNumber());
+  const subtotalAmount = moneyDecimal(lineAmounts.reduce((sum, amount) => sum.plus(amount), new Prisma.Decimal(0)));
+  const deliveryAmount = moneyDecimal(input.deliveryFee ?? 0);
+  const discountAmount = moneyDecimal(input.discount ?? 0);
+  const taxableAmount = subtotalAmount.plus(deliveryAmount).minus(discountAmount);
+  const taxAmount = input.tax === undefined
+    ? moneyDecimal(Prisma.Decimal.max(taxableAmount, 0).mul(UGANDA_VAT_RATE))
+    : moneyDecimal(input.tax);
+  const totalAmount = moneyDecimal(taxableAmount.plus(taxAmount));
+  return {
+    lineTotals,
+    subtotal: subtotalAmount.toNumber(),
+    deliveryFee: deliveryAmount.toNumber(),
+    discount: discountAmount.toNumber(),
+    tax: taxAmount.toNumber(),
+    total: totalAmount.toNumber(),
+  };
 }
 
 /** Days until payment is due for common term spellings: "NET30", "Net 45", "60 days", "COD". */
