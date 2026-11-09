@@ -114,3 +114,7 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Rechecked ancestry against main: `jolems123-patch-1` 0 ahead, 10 behind; `uganda-currency` 0 ahead, 0 behind. Deletion not performed because no supported delete-ref action is available.
 - NEEDS ME: functioning alternative CI runner or restored GitHub Actions billing; rotated historical credentials; owner-approved prices and reviewed country tax profiles; Railway, private S3, email and legal sign-off. No live supplier payment processing or subscription billing enabled.
 - Critical tenant isolation and approval enforcement remain OPEN. Do not merge PR #3 until verified security gates and reviews pass.
+
+## 2026-11-09 receipt quantity safety follow-up
+- Added negative-quantity regression cases before implementation (`6cdfb13`); clamped negative received/rejected, dispatched and invoiced quantities in `invoiceableLines` (`9a531bb`). This protects the computed invoiceable quantity but does not replace endpoint-level input validation. **NOT VERIFIED**: GitHub Actions most recent checked run `42575274123` concluded failure with zero executed job steps, consistent with runner/billing blockage. Alternative runner not executed; no passing claim.
+- NEEDS ME: restore an accessible independent CI runner (GitLab import/mirror or other runner), disposable PostgreSQL and release environment; confirm pricing, country tax/legal rules, Paddle sandbox credentials, private storage, email domain and production secrets rotation. No live billing or supplier payments enabled.
