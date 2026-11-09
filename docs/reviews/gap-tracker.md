@@ -107,3 +107,10 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Tests are committed but **NOT RUN**. GitHub Actions run `42569023510` for test commit `ddf8d24` ended FAILURE before useful test evidence was available. New commits require a fresh CI run and independent runner. Do not merge.
 - Rechecked branches: `jolems123-patch-1` remains 0 ahead/10 behind main; `uganda-currency` remains identical. No supported ref-deletion action identified, so neither deleted.
 - NEEDS ME: restore GitHub Actions billing or provision a GitLab mirror/runner for the committed alternative CI; rotate historically exposed credentials; provide final prices, country-specific tax rules, Railway/S3/email settings and legal review. Do not enable live subscription billing or supplier payments.
+
+## 2026-11-09 refresh-cookie production logout hardening
+- Read README, positioning, tracker, open PRs and current Actions state. PR #3 remains the sole open PR, draft, mergeability unstable. Latest inspected run `42569053844` completed FAILURE with job `129001954259` and no step details; billing/runner blocker is not proof of test failure or test success.
+- Wrote `apps/api/tests/refresh-cookie-flags.test.ts` first (`9e8d894`), then implemented shared secure cookie issuance/clearing helpers (`f8fef23`) and integrated them into auth/logout (`0a757eb`). Previously production logout cleared the cookie without its `Secure` attribute; now clearing matches issuance. **Tests are committed, not run/passed.**
+- Rechecked ancestry against main: `jolems123-patch-1` 0 ahead, 10 behind; `uganda-currency` 0 ahead, 0 behind. Deletion not performed because no supported delete-ref action is available.
+- NEEDS ME: functioning alternative CI runner or restored GitHub Actions billing; rotated historical credentials; owner-approved prices and reviewed country tax profiles; Railway, private S3, email and legal sign-off. No live supplier payment processing or subscription billing enabled.
+- Critical tenant isolation and approval enforcement remain OPEN. Do not merge PR #3 until verified security gates and reviews pass.
