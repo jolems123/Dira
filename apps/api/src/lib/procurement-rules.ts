@@ -397,6 +397,14 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     const ordered = num(poItem.quantity);
     const orderedUnitPrice = num(poItem.unitPrice);
     const received = receivedByLine.get(poItem.id) ?? 0;
+    if (Number.isFinite(ordered) && ordered >= 0 && received > ordered + QTY_EPSILON) {
+      exceptions.push({
+        code: 'OVER_RECEIPT',
+        severity: 'BLOCKING',
+        message: `Cumulative received quantity (${received}) exceeds ordered quantity (${ordered}) for ${poItem.name}`,
+        details: { purchaseOrderItemId: poItem.id, ordered, received },
+      });
+    }
     const invoiced = invoicedByLine.get(poItem.id);
     const invoicedQuantity = invoiced?.quantity ?? 0;
     const invoicedUnitPrice = invoiced?.unitPrice ?? 0;
