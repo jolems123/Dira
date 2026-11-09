@@ -141,6 +141,40 @@ describe('three-way match rules', () => {
   });
 });
 
+describe('invoiceable quantities across partial receipts', () => {
+  it('uses dispatch only for lines without any receipt, not as a PO-wide fallback', () => {
+    const result = invoiceableLines({
+      items: [
+        { id: 'a', name: 'Received item', quantity: 10, unitPrice: 1 },
+        { id: 'b', name: 'Unreceived item', quantity: 10, unitPrice: 1 },
+      ],
+      deliveries: [
+        { kind: 'DISPATCH', items: [
+          { purchaseOrderItemId: 'a', orderedQuantity: 10, receivedQuantity: 0, rejectedQuantity: 0 },
+          { purchaseOrderItemId: 'b', orderedQuantity: 10, receivedQuantity: 0, rejectedQuantity: 0 },
+        ] },
+        { kind: 'RECEIPT', items: [
+          { purchaseOrderItemId: 'a', orderedQuantity: 10, receivedQuantity: 4, rejectedQuantity: 0 },
+        ] },
+      ],
+      invoices: [],
+    });
+    expect(result.lines.find((line) => line.purchaseOrderItemId === 'a')?.quantity).toBe(4);
+    expect(result.lines.find((line) => line.purchaseOrderItemId === 'b')?.quantity).toBe(10);
+  });
+  it('does not substitute dispatch for a line with an explicit zero receipt', () => {
+    const result = invoiceableLines({
+      items: [{ id: 'a', name: 'Rejected item', quantity: 5, unitPrice: 1 }],
+      deliveries: [
+        { kind: 'DISPATCH', items: [{ purchaseOrderItemId: 'a', orderedQuantity: 5, receivedQuantity: 0, rejectedQuantity: 0 }] },
+        { kind: 'RECEIPT', items: [{ purchaseOrderItemId: 'a', orderedQuantity: 5, receivedQuantity: 5, rejectedQuantity: 5 }] },
+      ],
+      invoices: [],
+    });
+    expect(result.lines[0].quantity).toBe(0);
+  });
+});
+
 describe('Uganda VAT', () => {
   it('applies the 18% standard rate when no tax is supplied', () => {
     expect(UGANDA_VAT_RATE).toBe(0.18);
