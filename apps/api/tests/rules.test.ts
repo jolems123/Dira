@@ -29,6 +29,16 @@ function match(overrides: Partial<Parameters<typeof evaluateThreeWayMatch>[0]> =
 }
 
 describe('three-way match rules', () => {
+  it('blocks malformed purchase order quantities and prices before matching', () => {
+    for (const [quantity, unitPrice] of [[Number.NaN, 100], [-1, 100], [10, Number.POSITIVE_INFINITY], [10, -1]]) {
+      const result = match({
+        purchaseOrder: { ...basePo, items: [{ id: 'line-1', name: 'Widget', quantity, unitPrice }] },
+      });
+      expect(result.matched).toBe(false);
+      expect(result.exceptions.some((exception) => exception.code === 'INVALID_PO_LINE' && exception.severity === 'BLOCKING')).toBe(true);
+    }
+  });
+
   it('matches a clean PO / receipt / invoice triple', () => {
     const result = match();
     expect(result.matched).toBe(true);
