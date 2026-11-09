@@ -63,3 +63,15 @@ export function expectOk(response: request.Response, label: string) {
   }
   return response.body;
 }
+
+/** A distinct active approver in the buyer's organisation for SoD-safe journey tests. */
+export async function registerApprover(buyer: Actor): Promise<Actor> {
+  const approver = await registerOrg('BUYER', 'approver');
+  // The registration endpoint creates an independent organisation. Move only this
+  // test user's membership; a different organisation must never confer approval.
+  await prisma.organizationMember.deleteMany({ where: { userId: approver.userId } });
+  await prisma.organizationMember.create({
+    data: { organizationId: buyer.organizationId, userId: approver.userId, role: 'APPROVER' },
+  });
+  return { ...approver, organizationId: buyer.organizationId };
+}
