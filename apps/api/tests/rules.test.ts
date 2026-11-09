@@ -226,7 +226,7 @@ describe('upload security', () => {
   const pdf = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]);
 
   it('accepts a well-formed PDF', () => {
-    const result = validateUpload({ filename: 'invoice.pdf', mimeType: 'application/pdf', size: 2048, content: pdf });
+    const result = validateUpload({ filename: 'invoice.pdf', mimeType: 'application/pdf', size: pdf.length, content: pdf });
     expect(result.ok).toBe(true);
     expect(result.storageName).toMatch(/\.pdf$/);
     expect(result.storageName).not.toContain('invoice');
