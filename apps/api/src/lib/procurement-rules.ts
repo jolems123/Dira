@@ -268,7 +268,6 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
 
   const poItemIds = new Set(input.purchaseOrder.items.map((item) => item.id));
   const receivedByLine = new Map<string, number>();
-  let unlinkedReceived = 0;
   for (const item of input.receiptItems) {
     const received = num(item.receivedQuantity);
     const rejected = num(item.rejectedQuantity);
@@ -294,7 +293,11 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     }
     const net = received - rejected;
     if (!item.purchaseOrderItemId) {
-      unlinkedReceived += net;
+      exceptions.push({
+        code: 'UNMATCHED_RECEIPT_LINE',
+        severity: 'BLOCKING',
+        message: 'Goods receipt is not linked to a purchase order item',
+      });
       continue;
     }
     receivedByLine.set(item.purchaseOrderItemId, (receivedByLine.get(item.purchaseOrderItemId) ?? 0) + net);
@@ -343,7 +346,7 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     });
   }
 
-  const totalReceived = [...receivedByLine.values()].reduce((sum, value) => sum + value, 0) + unlinkedReceived;
+  const totalReceived = [...receivedByLine.values()].reduce((sum, value) => sum + value, 0);
   if (requireReceipt && totalReceived <= QTY_EPSILON) {
     exceptions.push({
       code: 'MISSING_RECEIPT',
