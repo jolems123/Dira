@@ -133,3 +133,10 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Fresh compare: `jolems123-patch-1` is 0 ahead/10 behind main; `uganda-currency` is 0 ahead/0 behind. No branch deletion capability available. Neither deleted.
 - NEEDS ME: an accessible isolated test runner with disposable PostgreSQL, security review/tenant isolation verification, PO approval thresholds, global tax rules, final plan prices, Paddle sandbox credentials (never live), Railway/S3/email configuration, privacy/legal review and rotation of any reused secrets.
 - No merge: security PR remains draft with critical unverified items. No shared database changes, no live billing and no supplier money movement.
+
+## 2026-11-09 rejection segregation-of-duties hardening
+- Reviewed README.md, docs/POSITIONING.md, this tracker, PR #3, and procurement approval/rejection routes. Confirmed a requester was forbidden from approving their own request but could reject it under OWNER/ADMIN/PROCUREMENT role.
+- Wrote a failing-case integration regression first (`0aff6dc`) in `apps/api/tests/self-approval.test.ts`, then added the matching requester prohibition to the rejection endpoint (`895db2a`). Both approval and rejection now return 403 when `requestedBy` equals the acting user. **Committed but not verified by running the test suite**; retain IN PROGRESS.
+- GitHub Actions run `42596881428` on test-first commit completed FAILURE; this does not demonstrate the implementation passed. User reported GitHub billing prevents normal CI. No external runner has supplied passing evidence.
+- Rechecked branch ancestry using compare API: `jolems123-patch-1` is 0 ahead / 10 behind main; `uganda-currency` is 0 ahead / 0 behind. Neither has unique commits. No supported delete-ref operation is available.
+- PR #3 remains draft. No merge or production changes. NEEDS ME: accessible independent runner and disposable PostgreSQL for typecheck/integration/build, review of tenant isolation and approval thresholds, owner-approved subscription prices, country tax rules, production configuration, credential rotation and legal review.
