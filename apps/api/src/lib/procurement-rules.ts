@@ -267,7 +267,20 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   const receivedByLine = new Map<string, number>();
   let unlinkedReceived = 0;
   for (const item of input.receiptItems) {
-    const net = num(item.receivedQuantity) - num(item.rejectedQuantity);
+    const received = num(item.receivedQuantity);
+    const rejected = num(item.rejectedQuantity);
+    const valid = Number.isFinite(received) && Number.isFinite(rejected)
+      && received >= 0 && rejected >= 0 && rejected <= received;
+    if (!valid) {
+      exceptions.push({
+        code: 'INVALID_RECEIPT_QUANTITY',
+        severity: 'BLOCKING',
+        message: 'Goods receipt contains invalid received or rejected quantities',
+        details: { purchaseOrderItemId: item.purchaseOrderItemId },
+      });
+      continue;
+    }
+    const net = received - rejected;
     if (!item.purchaseOrderItemId) {
       unlinkedReceived += net;
       continue;
@@ -278,6 +291,17 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   const invoicedByLine = new Map<string, { quantity: number; unitPrice: number }>();
   const unlinkedInvoiceLines: typeof input.invoice.items = [];
   for (const item of input.invoice.items) {
+    const quantity = num(item.quantity);
+    const price = num(item.unitPrice);
+    if (!Number.isFinite(quantity) || quantity < 0 || !Number.isFinite(price) || price < 0) {
+      exceptions.push({
+        code: 'INVALID_INVOICE_QUANTITY',
+        severity: 'BLOCKING',
+        message: 'Invoice contains invalid quantities or unit prices',
+        details: { purchaseOrderItemId: item.purchaseOrderItemId },
+      });
+      continue;
+    }
     if (!item.purchaseOrderItemId) {
       unlinkedInvoiceLines.push(item);
       continue;
