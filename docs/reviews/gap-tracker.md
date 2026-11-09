@@ -173,3 +173,11 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Branch ancestry: `jolems123-patch-1` 0 ahead/10 behind `main`; `uganda-currency` 0 ahead/0 behind. Both have no unique commits; no supported ref-deletion action exposed.
 - NEEDS ME: restore GitHub Actions billing/runner or provision the alternative CI runner; rotate historical credentials; approve final plan prices and reviewed country tax rules; configure Railway/private S3/email and complete legal review. Do not activate live billing or supplier payments.
 - Security PR #3 remains draft and unmerged; tenant isolation, approval limits, and all remaining global launch phases need executable verification and implementation.
+
+
+## 2026-11-09 18:48 EAT — cross-PO line reference enforcement
+- Reviewed README, positioning, tracker and sole open draft PR #3. Security head before this run `6c8eaea` had GitHub Actions run #90 (`42638439206`) **completed FAILURE**, job `129232739726`; job response has no steps or logs. No test pass or diagnosed application failure can be claimed.
+- Wrote regression tests first (`23fe628`) for an invoice line or goods receipt referencing a PO item ID not belonging to the matched purchase order. Then updated three-way matching (`629e091`) to produce BLOCKING `UNMATCHED_INVOICE_LINE` / `UNMATCHED_RECEIPT_LINE` exceptions, excluding those foreign references from trusted aggregates. This closes a fail-open case where unknown linked invoice lines were silently omitted. **Committed, NOT executed or independently verified.**
+- Fresh ancestry compare: `jolems123-patch-1` 0 ahead/10 behind main, `uganda-currency` 0 ahead/0 behind. Neither contains unique commits; no supported delete-ref capability identified. Neither deleted.
+- NEEDS ME: independent runner with disposable PostgreSQL for test/typecheck/build and real tenant-isolation/approval tests; actionable CI logs or restored runner access; historical credential rotation; owner-approved final plan prices and jurisdiction-reviewed tax profiles; Paddle sandbox, Railway/private S3/email and privacy/legal sign-off. Do not activate live subscription billing or supplier payments.
+- PR #3 remains draft/unmerged pending critical security work and executable verification. Remaining global phases OPEN. No shared DB changes or protection bypass.
