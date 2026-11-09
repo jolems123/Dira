@@ -280,6 +280,20 @@ describe('invoice quantity safety', () => {
   });
 });
 
+describe('nonfinite invoiceable quantity regression', () => {
+  it('never exposes NaN or Infinity as a billable quantity when historical rows are malformed', () => {
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const result = invoiceableLines({
+        items: [{ id: 'line', name: 'Supplies', quantity: 10, unitPrice: 5 }],
+        deliveries: [{ kind: 'RECEIPT', items: [{ purchaseOrderItemId: 'line', orderedQuantity: 10, receivedQuantity: bad, rejectedQuantity: 0 }] }],
+        invoices: [],
+      });
+      expect(Number.isFinite(result.lines[0].deliveredQuantity)).toBe(true);
+      expect(result.lines[0].quantity).toBe(0);
+    }
+  });
+});
+
 describe('recurring schedules', () => {
   it('steps weekly, monthly and quarterly, clamping month ends', () => {
     expect(nextOccurrence(new Date('2026-01-31T08:00:00Z'), 'MONTHLY').toISOString()).toBe('2026-02-28T08:00:00.000Z');
