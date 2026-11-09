@@ -19,6 +19,7 @@ import {
 } from '../lib/procurement-rules';
 import { estimateBudget, repeatRequest, supplierSuggestions } from '../lib/repeat-procurement';
 import { runThreeWayMatch } from '../lib/three-way-match';
+import { validReceiptQuantities } from '../lib/receipt-quantities';
 
 const requestSchema = z.object({
   title: z.string().min(3),
@@ -104,7 +105,7 @@ const goodsReceiptSchema = z.object({
     receivedQuantity: z.number().nonnegative(),
     rejectedQuantity: z.number().nonnegative().default(0),
     condition: z.string().max(200).optional(),
-  })).min(1),
+  })).min(1).refine((items) => items.every(validReceiptQuantities), { message: 'Rejected quantity cannot exceed received quantity' }),
 });
 
 const invoiceSchema = z.object({
