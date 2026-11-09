@@ -1,5 +1,5 @@
 import { consumeResetToken } from '../lib/password-reset';
-import { parseRefreshCookie } from '../lib/refresh-cookie';
+import { parseRefreshCookie, refreshCookieHeader, clearRefreshCookieHeader } from '../lib/refresh-cookie';
 import bcrypt from 'bcryptjs';
 import { Request, Response, Router } from 'express';
 import crypto from 'node:crypto';
@@ -36,8 +36,7 @@ function hashToken(token: string) {
 }
 
 function setRefreshCookie(res: Response, token: string) {
-  const secure = env.nodeEnv === 'production' ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `dira_refresh_token=${token}; HttpOnly; Path=/api/v1/auth; Max-Age=604800; SameSite=Lax${secure}`);
+  res.setHeader('Set-Cookie', refreshCookieHeader(token, env.nodeEnv === 'production'));
 }
 
 function refreshTokenFromRequest(req: Request) {
@@ -149,7 +148,7 @@ authRouter.post('/refresh', async (req, res, next) => {
 
 authRouter.post('/logout', requireAuth, async (req: AuthenticatedRequest, res) => {
   await prisma.refreshToken.updateMany({ where: { userId: req.user!.id, revokedAt: null }, data: { revokedAt: new Date() } });
-  res.setHeader('Set-Cookie', 'dira_refresh_token=; HttpOnly; Path=/api/v1/auth; Max-Age=0; SameSite=Lax');
+  res.setHeader('Set-Cookie', clearRefreshCookieHeader(env.nodeEnv === 'production'));
   return res.status(204).send();
 });
 
