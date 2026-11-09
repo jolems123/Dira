@@ -130,6 +130,25 @@ describe('three-way match rules', () => {
     expect(result.exceptions.map((exception) => exception.code)).toContain('PRICE_MISMATCH');
   });
 
+  it('blocks invoice lines referencing a nonexistent PO item instead of silently omitting them', () => {
+    const result = match({
+      invoice: {
+        id: 'inv-1', invoiceNumber: 'INV-1', currency: 'UGX', total: 1000, subtotal: 1000, tax: 0,
+        items: [{ purchaseOrderItemId: 'another-po-line', description: 'Unrelated item', quantity: 10, unitPrice: 100 }],
+      },
+    });
+    expect(result.matched).toBe(false);
+    expect(result.exceptions.some((exception) => exception.code === 'UNMATCHED_INVOICE_LINE' && exception.severity === 'BLOCKING')).toBe(true);
+  });
+
+  it('blocks receipts referencing items outside the purchase order', () => {
+    const result = match({
+      receiptItems: [{ purchaseOrderItemId: 'another-po-line', receivedQuantity: 10, rejectedQuantity: 0 }],
+    });
+    expect(result.matched).toBe(false);
+    expect(result.exceptions.some((exception) => exception.code === 'UNMATCHED_RECEIPT_LINE' && exception.severity === 'BLOCKING')).toBe(true);
+  });
+
   it('flags invoice lines not linked to a PO line', () => {
     const result = match({
       invoice: {
