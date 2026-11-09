@@ -55,3 +55,9 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - PR #3 head `102ed714` had GitHub Actions run #23 `42531676298`: completed **failure**, job `128887022466`; steps API returned `[]`, log retrieval returned `BlobNotFound` 404. No reliable failure diagnosis available; do not call CI green or merge. Subsequent document commits trigger a new run; check its outcome next.
 - Branch ancestry reconfirmed: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` 0 ahead/0 behind. Connector still has no delete-ref action.
 - NEEDS ME remains: historical credential rotation; final plan pricing; jurisdiction-specific reviewed tax settings; Railway/S3/email/legal settings; recover usable CI runner logs. No live billing or money movement authorized.
+
+## 2026-11-09 document test correction and CI recheck
+- GitHub Actions run #28 (`42536724327`) for security PR head `b32ecceb` completed **failure**; job `128902539899` also failed. No step-level diagnostic is present in the returned jobs payload; root cause remains unverified.
+- Corrected `apps/api/tests/document-response.test.ts` to exercise actual CR/LF, backslash traversal and NUL/tab characters instead of literal escaped text. Commit `24171a2`. This corrects test coverage but does **not** establish a CI pass or fix the unknown runner failure.
+- PR #3 remains draft and mergeability `unstable`; no merge or production deployment. Security isolation, approval limits and full global phases remain open.
+- NEEDS ME: obtain actionable CI failure logs or restore GitHub runner availability; rotate previously used historical credentials; approve prices and country tax rules; configure Railway/private S3/email and legal review.
