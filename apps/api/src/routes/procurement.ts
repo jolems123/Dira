@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
+import { claimPurchaseRequestDecision } from '../lib/approval-claim';
 import {
   INVOICE_TRANSITIONS,
   PO_TRANSITIONS,
@@ -280,20 +281,17 @@ procurementRouter.post('/purchase-requests/:id/approve', requireRole('OWNER', 'A
     if (!request) return res.status(404).json({ message: 'Purchase request not found' });
     if (request.status !== 'SUBMITTED') return res.status(409).json({ message: `Cannot approve a ${request.status.toLowerCase()} request` });
     if (request.requestedBy === req.user!.id) return res.status(403).json({ message: 'Requesters cannot approve their own purchase requests' });
-    const [, updated] = await prisma.$transaction([
-      prisma.approvalDecision.create({
-        data: {
-          purchaseRequestId: request.id,
-          approverUserId: req.user!.id,
-          decision: 'APPROVED',
-          comment: parsed.data.comment,
-        },
-      }),
-      prisma.purchaseRequest.update({
-        where: { id: request.id },
-        data: { status: 'APPROVED', approvedAt: new Date() },
-      }),
-    ]);
+    const updated = await prisma.$transaction(async (tx) => {
+      const claimed = await claimPurchaseRequestDecision(tx, {
+        id: request.id, organizationId: req.user!.organizationId!, status: 'APPROVED',
+      });
+      if (!claimed) return null;
+      await tx.approvalDecision.create({
+        data: { purchaseRequestId: request.id, approverUserId: req.user!.id, decision: 'APPROVED', comment: parsed.data.comment },
+      });
+      return tx.purchaseRequest.update({ where: { id: request.id }, data: { approvedAt: new Date() } });
+    });
+    if (!updated) return res.status(409).json({ message: 'Purchase request already decided' });
     return res.json(updated);
   } catch (error) { return next(error); }
 });
@@ -305,20 +303,17 @@ procurementRouter.post('/purchase-requests/:id/reject', requireRole('OWNER', 'AD
     const request = await prisma.purchaseRequest.findFirst({ where: { id: String(req.params.id), organizationId: req.user!.organizationId } });
     if (!request) return res.status(404).json({ message: 'Purchase request not found' });
     if (request.status !== 'SUBMITTED') return res.status(409).json({ message: `Cannot reject a ${request.status.toLowerCase()} request` });
-    const [, updated] = await prisma.$transaction([
-      prisma.approvalDecision.create({
-        data: {
-          purchaseRequestId: request.id,
-          approverUserId: req.user!.id,
-          decision: 'REJECTED',
-          comment: parsed.data.comment,
-        },
-      }),
-      prisma.purchaseRequest.update({
-        where: { id: request.id },
-        data: { status: 'REJECTED' },
-      }),
-    ]);
+    const updated = await prisma.$transaction(async (tx) => {
+      const claimed = await claimPurchaseRequestDecision(tx, {
+        id: request.id, organizationId: req.user!.organizationId!, status: 'REJECTED',
+      });
+      if (!claimed) return null;
+      await tx.approvalDecision.create({
+        data: { purchaseRequestId: request.id, approverUserId: req.user!.id, decision: 'REJECTED', comment: parsed.data.comment },
+      });
+      return tx.purchaseRequest.findUniqueOrThrow({ where: { id: request.id } });
+    });
+    if (!updated) return res.status(409).json({ message: 'Purchase request already decided' });
     return res.json(updated);
   } catch (error) { return next(error); }
 });
