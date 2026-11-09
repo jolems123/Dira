@@ -128,7 +128,9 @@ export function invoiceableLines(input: {
   const anyReceipt = received.size > 0;
   const basis: 'RECEIVED' | 'DISPATCHED' = anyReceipt ? 'RECEIVED' : 'DISPATCHED';
   const lines = input.items.map((item) => {
-    const deliveredQuantity = round2((anyReceipt ? received : dispatched).get(item.id) ?? 0);
+    // Receipt evidence takes precedence per PO line. Other lines can still use dispatch
+    // evidence until their first receipt, including a fully rejected (zero-net) receipt.
+    const deliveredQuantity = round2((received.has(item.id) ? received : dispatched).get(item.id) ?? 0);
     const invoicedQuantity = round2(invoiced.get(item.id) ?? 0);
     return {
       purchaseOrderItemId: item.id,
