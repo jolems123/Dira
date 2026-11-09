@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
 import { claimPurchaseRequestDecision } from '../lib/approval-claim';
+import { claimPurchaseRequestSubmission } from '../lib/request-submit-claim';
 import {
   INVOICE_TRANSITIONS,
   PO_TRANSITIONS,
@@ -268,7 +269,10 @@ procurementRouter.post('/purchase-requests/:id/submit', requireRole('OWNER', 'AD
     const request = await prisma.purchaseRequest.findFirst({ where: { id: String(req.params.id), organizationId: req.user!.organizationId } });
     if (!request) return res.status(404).json({ message: 'Purchase request not found' });
     if (request.status !== 'DRAFT') return res.status(409).json({ message: `Cannot submit a ${request.status.toLowerCase()} request` });
-    const updated = await prisma.purchaseRequest.update({ where: { id: request.id }, data: { status: 'SUBMITTED', submittedAt: new Date() } });
+    const claimed = await prisma.$transaction(async (tx) =>
+      claimPurchaseRequestSubmission(tx, { id: request.id, organizationId: req.user!.organizationId! }));
+    if (!claimed) return res.status(409).json({ message: 'Purchase request already submitted or changed' });
+    const updated = await prisma.purchaseRequest.findFirst({ where: { id: request.id, organizationId: req.user!.organizationId } });
     return res.json(updated);
   } catch (error) { return next(error); }
 });
