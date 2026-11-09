@@ -23,6 +23,7 @@ import {
 import { estimateBudget, repeatRequest, supplierSuggestions } from '../lib/repeat-procurement';
 import { runThreeWayMatch } from '../lib/three-way-match';
 import { validReceiptQuantities } from '../lib/receipt-quantities';
+import { validateQuotedRfqItems } from '../lib/quote-item-validation';
 
 const requestSchema = z.object({
   title: z.string().min(3),
@@ -180,6 +181,8 @@ function priceQuoteLines(
   rfqItems: Array<{ id: string; quantity: Prisma.Decimal | null }>,
   input: z.infer<typeof submitQuotationSchema>,
 ) {
+  const invalidItem = validateQuotedRfqItems(input.items.map((item) => item.rfqItemId), rfqItems.map((item) => item.id));
+  if (invalidItem) return { error: invalidItem } as const;
   const rfqItemMap = new Map(rfqItems.map((item) => [item.id, item]));
   const lines: Array<{ rfqItemId: string; quantity: number; unitPrice: number; notes?: string }> = [];
   for (const item of input.items) {
