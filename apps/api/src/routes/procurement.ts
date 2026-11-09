@@ -303,6 +303,7 @@ procurementRouter.post('/purchase-requests/:id/reject', requireRole('OWNER', 'AD
     const request = await prisma.purchaseRequest.findFirst({ where: { id: String(req.params.id), organizationId: req.user!.organizationId } });
     if (!request) return res.status(404).json({ message: 'Purchase request not found' });
     if (request.status !== 'SUBMITTED') return res.status(409).json({ message: `Cannot reject a ${request.status.toLowerCase()} request` });
+    if (request.requestedBy === req.user!.id) return res.status(403).json({ message: 'Requesters cannot reject their own purchase requests' });
     const updated = await prisma.$transaction(async (tx) => {
       const claimed = await claimPurchaseRequestDecision(tx, {
         id: request.id, organizationId: req.user!.organizationId!, status: 'REJECTED',
