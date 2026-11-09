@@ -105,15 +105,20 @@ export function invoiceableLines(input: {
   deliveries: Array<{ kind: string; items: Array<{ purchaseOrderItemId: string | null; orderedQuantity: Decimalish; receivedQuantity: Decimalish; rejectedQuantity: Decimalish }> }>;
   invoices: Array<{ status: string; items: Array<{ purchaseOrderItemId: string | null; quantity: Decimalish }> }>;
 }) {
+  // Historical rows can predate request validation; never turn nonfinite values into billable quantities.
+  const safeQuantity = (value: Decimalish): number => {
+    const parsed = num(value);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  };
   const received = new Map<string, number>();
   const dispatched = new Map<string, number>();
   for (const delivery of input.deliveries) {
     for (const item of delivery.items) {
       if (!item.purchaseOrderItemId) continue;
       if (delivery.kind === 'RECEIPT') {
-        received.set(item.purchaseOrderItemId, (received.get(item.purchaseOrderItemId) ?? 0) + Math.max(0, num(item.receivedQuantity)) - Math.min(Math.max(0, num(item.rejectedQuantity)), Math.max(0, num(item.receivedQuantity))));
+        received.set(item.purchaseOrderItemId, (received.get(item.purchaseOrderItemId) ?? 0) + safeQuantity(item.receivedQuantity) - Math.min(safeQuantity(item.rejectedQuantity), safeQuantity(item.receivedQuantity)));
       } else {
-        dispatched.set(item.purchaseOrderItemId, (dispatched.get(item.purchaseOrderItemId) ?? 0) + Math.max(0, num(item.orderedQuantity)));
+        dispatched.set(item.purchaseOrderItemId, (dispatched.get(item.purchaseOrderItemId) ?? 0) + safeQuantity(item.orderedQuantity));
       }
     }
   }
@@ -122,7 +127,7 @@ export function invoiceableLines(input: {
     if (NON_BILLING_INVOICE_STATUSES.includes(invoice.status)) continue;
     for (const item of invoice.items) {
       if (!item.purchaseOrderItemId) continue;
-      invoiced.set(item.purchaseOrderItemId, (invoiced.get(item.purchaseOrderItemId) ?? 0) + Math.max(0, num(item.quantity)));
+      invoiced.set(item.purchaseOrderItemId, (invoiced.get(item.purchaseOrderItemId) ?? 0) + safeQuantity(item.quantity));
     }
   }
   const anyReceipt = received.size > 0;
