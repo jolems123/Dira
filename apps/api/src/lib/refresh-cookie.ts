@@ -11,3 +11,12 @@ export function parseRefreshCookie(header: string): string | undefined {
     return undefined;
   }
 }
+
+/** Both issuance and removal must use identical cookie scope and security flags. */
+export function refreshCookieHeader(token: string, production: boolean): string {
+  return `dira_refresh_token=${token}; HttpOnly; Path=/api/v1/auth; Max-Age=604800; SameSite=Lax${production ? '; Secure' : ''}`;
+}
+
+export function clearRefreshCookieHeader(production: boolean): string {
+  return `dira_refresh_token=; HttpOnly; Path=/api/v1/auth; Max-Age=0; SameSite=Lax${production ? '; Secure' : ''}`;
+}
