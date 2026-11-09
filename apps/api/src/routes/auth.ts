@@ -1,3 +1,4 @@
+import { parseRefreshCookie } from '../lib/refresh-cookie';
 import bcrypt from 'bcryptjs';
 import { Request, Response, Router } from 'express';
 import crypto from 'node:crypto';
@@ -40,8 +41,9 @@ function setRefreshCookie(res: Response, token: string) {
 
 function refreshTokenFromRequest(req: Request) {
   const cookieHeader = typeof req.headers.cookie === 'string' ? req.headers.cookie : '';
-  const cookie = cookieHeader.split(';').map((part) => part.trim()).find((part) => part.startsWith('dira_refresh_token='));
-  return cookie ? decodeURIComponent(cookie.slice('dira_refresh_token='.length)) : (typeof req.body?.refreshToken === 'string' ? req.body.refreshToken : undefined);
+  const cookie = parseRefreshCookie(cookieHeader);
+  if (cookieHeader.split(';').some((part) => part.trim().startsWith('dira_refresh_token='))) return cookie;
+  return typeof req.body?.refreshToken === 'string' ? req.body.refreshToken : undefined;
 }
 
 export const authRouter = Router();
