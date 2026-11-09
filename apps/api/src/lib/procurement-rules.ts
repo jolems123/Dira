@@ -336,6 +336,15 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
       continue;
     }
     const existing = invoicedByLine.get(item.purchaseOrderItemId);
+    if (existing && Math.abs(existing.unitPrice - price) > MONEY_EPSILON) {
+      exceptions.push({
+        code: 'CONFLICTING_INVOICE_PRICES',
+        severity: 'BLOCKING',
+        message: 'Invoice lines for the same purchase order item have conflicting unit prices',
+        details: { purchaseOrderItemId: item.purchaseOrderItemId },
+      });
+      continue;
+    }
     invoicedByLine.set(item.purchaseOrderItemId, {
       quantity: (existing?.quantity ?? 0) + num(item.quantity),
       unitPrice: num(item.unitPrice),
