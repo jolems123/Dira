@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INVOICE_TRANSITIONS, PO_TRANSITIONS, QUOTE_TRANSITIONS, UGANDA_VAT_RATE, advanceSchedule, calculateTotals, canTransition, evaluateThreeWayMatch, invoiceableLines, isQuoteExpired, nextOccurrence, paymentTermDays, resolveTax } from '../src/lib/procurement-rules';
+import { INVOICE_TRANSITIONS, PO_TRANSITIONS, QUOTE_TRANSITIONS, UGANDA_VAT_RATE, round2, advanceSchedule, calculateTotals, canTransition, evaluateThreeWayMatch, invoiceableLines, isQuoteExpired, nextOccurrence, paymentTermDays, resolveTax } from '../src/lib/procurement-rules';
 import { MAX_UPLOAD_BYTES, resolveStoragePath, validateUpload } from '../src/lib/uploads';
 
 const basePo = {
@@ -132,6 +132,21 @@ describe('Uganda VAT', () => {
 
   it('never charges VAT on a negative taxable amount', () => {
     expect(resolveTax(-100)).toBe(0);
+  });
+});
+
+describe('decimal rounding safety', () => {
+  it('rounds half a cent deterministically rather than using binary toFixed', () => {
+    expect(round2(1.005)).toBe(1.01);
+    expect(round2(2.675)).toBe(2.68);
+  });
+  it('avoids floating-point accumulation in invoice totals', () => {
+    const result = calculateTotals({ lines: [{ quantity: 1, unitPrice: 0.1 }, { quantity: 1, unitPrice: 0.2 }], tax: 0 });
+    expect(result.subtotal).toBe(0.3);
+    expect(result.total).toBe(0.3);
+  });
+  it('rounds tax precisely on fractional line totals', () => {
+    expect(resolveTax(0.15)).toBe(0.03);
   });
 });
 
