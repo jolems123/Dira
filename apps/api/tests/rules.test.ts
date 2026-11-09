@@ -36,6 +36,28 @@ describe('three-way match rules', () => {
     expect(result.lines[0].receivedQuantity).toBe(10);
   });
 
+  it('blocks invalid receipt quantities instead of treating them as verified goods', () => {
+    const result = match({
+      receiptItems: [{ purchaseOrderItemId: 'line-1', receivedQuantity: 2, rejectedQuantity: 7 }],
+    });
+    expect(result.matched).toBe(false);
+    expect(result.exceptions.map((item) => item.code)).toContain('INVALID_RECEIPT_QUANTITY');
+    expect(result.lines[0].receivedQuantity).toBe(0);
+  });
+
+  it('blocks negative or nonfinite invoice quantities', () => {
+    for (const quantity of [-1, Number.NaN]) {
+      const result = match({
+        invoice: {
+          id: 'inv-1', invoiceNumber: 'INV-1', currency: 'UGX', total: 1000, subtotal: 1000, tax: 0,
+          items: [{ purchaseOrderItemId: 'line-1', description: 'Widget', quantity, unitPrice: 100 }],
+        },
+      });
+      expect(result.exceptions.map((item) => item.code)).toContain('INVALID_INVOICE_QUANTITY');
+      expect(result.matched).toBe(false);
+    }
+  });
+
   it('detects a missing goods receipt', () => {
     const result = match({ receiptItems: [] });
     expect(result.exceptions.map((exception) => exception.code)).toContain('MISSING_RECEIPT');
