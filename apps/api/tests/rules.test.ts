@@ -58,6 +58,16 @@ describe('three-way match rules', () => {
     }
   });
 
+  it('blocks unlinked goods receipts even when their quantity is positive', () => {
+    const result = match({
+      receiptItems: [{ purchaseOrderItemId: null, receivedQuantity: 10, rejectedQuantity: 0 }],
+    });
+    expect(result.matched).toBe(false);
+    expect(result.exceptions.some((exception) => exception.code === 'UNMATCHED_RECEIPT_LINE' && exception.severity === 'BLOCKING')).toBe(true);
+    expect(result.exceptions.map((exception) => exception.code)).toContain('MISSING_RECEIPT');
+    expect(result.lines[0].receivedQuantity).toBe(0);
+  });
+
   it('detects a missing goods receipt', () => {
     const result = match({ receiptItems: [] });
     expect(result.exceptions.map((exception) => exception.code)).toContain('MISSING_RECEIPT');
