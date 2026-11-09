@@ -168,6 +168,18 @@ describe('document arithmetic', () => {
   });
 });
 
+describe('invoice quantity safety', () => {
+  it('does not allow a malformed receipt with more rejected than received to create negative billable quantities', () => {
+    const result = invoiceableLines({
+      items: [{ id: 'line', name: 'Supplies', quantity: 10, unitPrice: 5 }],
+      deliveries: [{ kind: 'RECEIPT', items: [{ purchaseOrderItemId: 'line', orderedQuantity: 10, receivedQuantity: 2, rejectedQuantity: 7 }] }],
+      invoices: [],
+    });
+    expect(result.lines[0].deliveredQuantity).toBe(0);
+    expect(result.lines[0].quantity).toBe(0);
+  });
+});
+
 describe('recurring schedules', () => {
   it('steps weekly, monthly and quarterly, clamping month ends', () => {
     expect(nextOccurrence(new Date('2026-01-31T08:00:00Z'), 'MONTHLY').toISOString()).toBe('2026-02-28T08:00:00.000Z');
