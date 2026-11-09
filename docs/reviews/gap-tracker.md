@@ -140,3 +140,10 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - GitHub Actions run `42596881428` on test-first commit completed FAILURE; this does not demonstrate the implementation passed. User reported GitHub billing prevents normal CI. No external runner has supplied passing evidence.
 - Rechecked branch ancestry using compare API: `jolems123-patch-1` is 0 ahead / 10 behind main; `uganda-currency` is 0 ahead / 0 behind. Neither has unique commits. No supported delete-ref operation is available.
 - PR #3 remains draft. No merge or production changes. NEEDS ME: accessible independent runner and disposable PostgreSQL for typecheck/integration/build, review of tenant isolation and approval thresholds, owner-approved subscription prices, country tax rules, production configuration, credential rotation and legal review.
+
+## 2026-11-09 13:48 EAT — submission race hardening
+- Read README, positioning, tracker, PR list and procurement route. Only open PR is draft security PR #3.
+- Tests-first commit `06b0380` asserts a draft-only, organisation-scoped atomic submission claim; implementation `b82784e`; route integration `03d3308`. The submission endpoint now rejects concurrent/stale submission claims with HTTP 409 rather than blindly updating a previously read DRAFT. **Unit and database tests NOT RUN; change not verified.**
+- Latest checked Actions run `42596918377` completed failure with one failed job and **zero steps**. This provides no application test evidence. Owner reports GitHub billing issues; do not disable branch protections or claim green.
+- Rechecked branches via compare API: `jolems123-patch-1` ahead 0/behind 10; `uganda-currency` ahead 0/behind 0. Both have no unique commits; deletion action remains unavailable.
+- NEEDS ME: accessible independent runner and disposable PostgreSQL for typecheck/unit/integration/security tests; final pricing and tax/legal approvals; production S3, Railway and email settings; credential rotation. Security PR remains draft and unmerged; no live supplier payment or subscription billing enabled.
