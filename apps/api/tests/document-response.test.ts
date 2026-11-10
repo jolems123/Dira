@@ -20,4 +20,11 @@ describe('document response filename safety', () => {
   it('removes Unicode line and paragraph separators', () => {
     expect(safeAttachmentName('invoice\u2028X-Fake.pdf')).toBe('invoiceX-Fake.pdf');
   });
+  it('does not expose hidden or dot-only download names', () => {
+    expect(safeAttachmentName('...')).toBe('document');
+    expect(safeAttachmentName('.env')).toBe('env');
+  });
+  it('removes trailing Windows-ambiguous dots and spaces', () => {
+    expect(safeAttachmentName('invoice.pdf.  ')).toBe('invoice.pdf');
+  });
 });
