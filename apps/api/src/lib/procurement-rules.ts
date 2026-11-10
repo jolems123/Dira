@@ -197,6 +197,8 @@ export const INVOICE_TRANSITIONS: Record<string, string[]> = {
 };
 
 export function canTransition(map: Record<string, string[]>, from: string, to: string): boolean {
+  // A no-op must not silently accept an unknown or forged persisted status.
+  if (!Object.prototype.hasOwnProperty.call(map, from)) return false;
   if (from === to) return true;
   return (map[from] ?? []).includes(to);
 }
