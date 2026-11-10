@@ -238,3 +238,10 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Fresh compare API: `jolems123-patch-1` 0 ahead/10 behind main, `uganda-currency` 0 ahead/0 behind. No unique commits; no supported branch deletion action available, so neither deleted.
 - Source review: `evaluateThreeWayMatch` uses Number arithmetic in subtotal and total checks and `resolveTax` still defaults to Uganda VAT; country-specific tax profiles and malformed historical invoice total handling require regression tests and independent verification before production. Do not infer global finance readiness from the existing Decimal-based `calculateTotals` helper.
 - NEEDS ME: working no-paid-CI runner with isolated disposable PostgreSQL (or restored Actions quota), actionable job logs, historical credential rotation, owner-approved plan prices and reviewed country tax profiles, Paddle **sandbox-only** credentials, Railway/private S3/email configuration and legal/privacy approval. Never enable live billing without explicit approval; supplier payments remain records only.
+
+
+## 2026-11-10 financial integrity and verification
+- Security PR #3 previous head `26fd8ff`: GitHub Actions run #114 (`42723039964`) completed FAILURE. This is not passing evidence.
+- Regression tests committed first (`3a4300f`), then fail-closed legacy PO/invoice total validation (`ce6482f`): reject negative/nonfinite PO totals and invoice total/subtotal/tax, and prevent nonfinite document totals from entering returned match summary. **Tests not executed or independently verified.**
+- Rechecked branch ancestry: `jolems123-patch-1` 0 ahead/10 behind main; `uganda-currency` 0 ahead/0 behind. No supported branch deletion action available.
+- NEEDS ME: restore an executable CI runner with disposable PostgreSQL; rotate any historically exposed credentials; approve jurisdiction-reviewed tax rules and plan prices; configure Paddle **sandbox only**, Railway/private S3/email; obtain privacy/legal approval. Do not merge draft PR #3 until required tests and reviews pass. Supplier payments remain records only; no live subscription billing approval.
