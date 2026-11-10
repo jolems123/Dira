@@ -6,6 +6,8 @@ export function safeAttachmentName(filename: string): string {
     .replace(/[\u200B-\u200F\u2028-\u202E\u2060-\u2069\uFEFF]/g, '')
     .replace(/["\\\\\r\n:\/\x00-\x1f]+/g, '_')
     .replace(/^[._\s]+|[._\s]+$/g, '')
-    .slice(0, 180);
+    .slice(0, 180)
+    // Truncation can expose a trailing dot or space that was not trailing before.
+    .replace(/[._\s]+$/g, '');
   return safe || 'document';
 }
