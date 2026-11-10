@@ -27,4 +27,9 @@ describe('document response filename safety', () => {
   it('removes trailing Windows-ambiguous dots and spaces', () => {
     expect(safeAttachmentName('invoice.pdf.  ')).toBe('invoice.pdf');
   });
+  it('does not leave trailing dots after truncating an overlong filename', () => {
+    const result = safeAttachmentName('a'.repeat(179) + '.pdf');
+    expect(result.length).toBeLessThanOrEqual(180);
+    expect(result.endsWith('.')).toBe(false);
+  });
 });
