@@ -401,6 +401,17 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
 
   for (const sibling of input.siblingInvoices) {
     if (sibling.id === input.invoice.id) continue;
+    // Legacy invoice rows may predate monetary input validation. An invalid
+    // sibling total must not evade duplicate-invoice review via NaN comparisons.
+    const siblingTotal = num(sibling.total);
+    if (!Number.isFinite(siblingTotal) || siblingTotal < 0) {
+      exceptions.push({
+        code: 'INVALID_SIBLING_INVOICE_TOTAL',
+        severity: 'BLOCKING',
+        message: 'Another supplier invoice has an invalid total',
+        details: { siblingInvoiceId: sibling.id },
+      });
+    }
     if (sibling.invoiceNumber === input.invoice.invoiceNumber) {
       exceptions.push({
         code: 'DUPLICATE_INVOICE',
