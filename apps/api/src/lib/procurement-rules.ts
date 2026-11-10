@@ -110,15 +110,19 @@ export function invoiceableLines(input: {
     const parsed = num(value);
     return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
   };
+  // Historical records may individually contain finite numbers whose cumulative sum
+  // overflows Number. Cap preview aggregates conservatively instead of emitting Infinity.
+  const addPreviewQuantity = (current: number, addition: number): number =>
+    Math.min(Number.MAX_SAFE_INTEGER, current + addition);
   const received = new Map<string, number>();
   const dispatched = new Map<string, number>();
   for (const delivery of input.deliveries) {
     for (const item of delivery.items) {
       if (!item.purchaseOrderItemId) continue;
       if (delivery.kind === 'RECEIPT') {
-        received.set(item.purchaseOrderItemId, (received.get(item.purchaseOrderItemId) ?? 0) + safeQuantity(item.receivedQuantity) - Math.min(safeQuantity(item.rejectedQuantity), safeQuantity(item.receivedQuantity)));
+        received.set(item.purchaseOrderItemId, addPreviewQuantity(received.get(item.purchaseOrderItemId) ?? 0, safeQuantity(item.receivedQuantity) - Math.min(safeQuantity(item.rejectedQuantity), safeQuantity(item.receivedQuantity))));
       } else {
-        dispatched.set(item.purchaseOrderItemId, (dispatched.get(item.purchaseOrderItemId) ?? 0) + safeQuantity(item.orderedQuantity));
+        dispatched.set(item.purchaseOrderItemId, addPreviewQuantity(dispatched.get(item.purchaseOrderItemId) ?? 0, safeQuantity(item.orderedQuantity)));
       }
     }
   }
@@ -127,7 +131,7 @@ export function invoiceableLines(input: {
     if (NON_BILLING_INVOICE_STATUSES.includes(invoice.status)) continue;
     for (const item of invoice.items) {
       if (!item.purchaseOrderItemId) continue;
-      invoiced.set(item.purchaseOrderItemId, (invoiced.get(item.purchaseOrderItemId) ?? 0) + safeQuantity(item.quantity));
+      invoiced.set(item.purchaseOrderItemId, addPreviewQuantity(invoiced.get(item.purchaseOrderItemId) ?? 0, safeQuantity(item.quantity)));
     }
   }
   const anyReceipt = received.size > 0;
