@@ -138,7 +138,14 @@ export function invoiceableLines(input: {
     if (NON_BILLING_INVOICE_STATUSES.includes(invoice.status)) continue;
     for (const item of invoice.items) {
       if (!item.purchaseOrderItemId) continue;
-      invoiced.set(item.purchaseOrderItemId, addPreviewQuantity(invoiced.get(item.purchaseOrderItemId) ?? 0, safeQuantity(item.quantity)));
+      // Malformed active invoice evidence is uncertain committed quantity, not zero.
+      // Reserve the entire preview capacity rather than allowing duplicate billing.
+      const rawInvoiced = num(item.quantity);
+      if (!Number.isFinite(rawInvoiced) || rawInvoiced < 0) {
+        invoiced.set(item.purchaseOrderItemId, Number.MAX_SAFE_INTEGER);
+        continue;
+      }
+      invoiced.set(item.purchaseOrderItemId, addPreviewQuantity(invoiced.get(item.purchaseOrderItemId) ?? 0, rawInvoiced));
     }
   }
   const anyReceipt = received.size > 0;
