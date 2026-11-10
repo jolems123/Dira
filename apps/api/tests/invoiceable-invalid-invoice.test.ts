@@ -18,3 +18,24 @@ describe('invoiceableLines historical invoice safety', () => {
     expect(preview(3).lines[0].quantity).toBe(7);
   });
 });
+
+
+describe('invoiceableLines missing receipt evidence', () => {
+  const preview = (receivedQuantity: number | null | undefined, rejectedQuantity: number | null | undefined) => invoiceableLines({
+    items: [{ id: 'line', name: 'Supply', quantity: 10, unitPrice: 1 }],
+    deliveries: [{ kind: 'RECEIPT', items: [{ purchaseOrderItemId: 'line', orderedQuantity: 10, receivedQuantity, rejectedQuantity }] }],
+    invoices: [],
+  });
+
+  it.each([null, undefined])('does not treat missing rejectedQuantity %s as zero rejection', (missing) => {
+    expect(preview(10, missing).lines[0].quantity).toBe(0);
+  });
+
+  it.each([null, undefined])('does not treat missing receivedQuantity %s as valid receipt evidence', (missing) => {
+    expect(preview(missing, 0).lines[0].quantity).toBe(0);
+  });
+
+  it('preserves a valid fully accepted receipt', () => {
+    expect(preview(10, 0).lines[0].quantity).toBe(10);
+  });
+});
