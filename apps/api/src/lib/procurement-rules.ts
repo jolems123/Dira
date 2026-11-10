@@ -120,7 +120,14 @@ export function invoiceableLines(input: {
     for (const item of delivery.items) {
       if (!item.purchaseOrderItemId) continue;
       if (delivery.kind === 'RECEIPT') {
-        received.set(item.purchaseOrderItemId, addPreviewQuantity(received.get(item.purchaseOrderItemId) ?? 0, safeQuantity(item.receivedQuantity) - Math.min(safeQuantity(item.rejectedQuantity), safeQuantity(item.receivedQuantity))));
+        // Invalid legacy rejection evidence cannot be treated as zero rejected:
+        // doing so would inflate the supplier's billable quantity.
+        const rawReceived = num(item.receivedQuantity);
+        const rawRejected = num(item.rejectedQuantity);
+        const validReceipt = Number.isFinite(rawReceived) && Number.isFinite(rawRejected)
+          && rawReceived >= 0 && rawRejected >= 0 && rawRejected <= rawReceived;
+        const netReceived = validReceipt ? rawReceived - rawRejected : 0;
+        received.set(item.purchaseOrderItemId, addPreviewQuantity(received.get(item.purchaseOrderItemId) ?? 0, netReceived));
       } else {
         dispatched.set(item.purchaseOrderItemId, addPreviewQuantity(dispatched.get(item.purchaseOrderItemId) ?? 0, safeQuantity(item.orderedQuantity)));
       }
