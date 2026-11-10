@@ -386,7 +386,11 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     });
   }
 
-  const totalReceived = [...receivedByLine.values()].reduce((sum, value) => sum + value, 0);
+  const rawTotalReceived = [...receivedByLine.values()].reduce((sum, value) => sum + value, 0);
+  if (!Number.isFinite(rawTotalReceived)) {
+    exceptions.push({ code: 'INVALID_RECEIPT_TOTAL', severity: 'BLOCKING', message: 'Goods receipt quantities overflowed across purchase order lines' });
+  }
+  const totalReceived = Number.isFinite(rawTotalReceived) ? rawTotalReceived : 0;
   if (requireReceipt && totalReceived <= QTY_EPSILON) {
     exceptions.push({
       code: 'MISSING_RECEIPT',
