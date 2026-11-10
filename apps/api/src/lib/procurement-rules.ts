@@ -309,7 +309,9 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   for (const item of input.receiptItems) {
     const received = num(item.receivedQuantity);
     const rejected = num(item.rejectedQuantity);
-    const valid = Number.isFinite(received) && Number.isFinite(rejected)
+    const valid = item.receivedQuantity !== null && item.receivedQuantity !== undefined
+      && item.rejectedQuantity !== null && item.rejectedQuantity !== undefined
+      && Number.isFinite(received) && Number.isFinite(rejected)
       && received >= 0 && rejected >= 0 && rejected <= received;
     if (!valid) {
       exceptions.push({
@@ -352,7 +354,8 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   for (const item of input.invoice.items) {
     const quantity = num(item.quantity);
     const price = num(item.unitPrice);
-    if (!Number.isFinite(quantity) || quantity < 0 || !Number.isFinite(price) || price < 0) {
+    if (item.quantity === null || item.quantity === undefined || item.unitPrice === null || item.unitPrice === undefined
+      || !Number.isFinite(quantity) || quantity < 0 || !Number.isFinite(price) || price < 0) {
       exceptions.push({
         code: 'INVALID_INVOICE_QUANTITY',
         severity: 'BLOCKING',
