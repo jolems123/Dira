@@ -28,4 +28,21 @@ describe('three-way match aggregate overflow', () => {
     expect(result.matched).toBe(false);
     expect(Number.isFinite(result.lines[0].invoicedQuantity)).toBe(true);
   });
+  it('blocks receipt total overflow across distinct purchase order lines', () => {
+    const result = evaluateThreeWayMatch({
+      ...base,
+      purchaseOrder: { ...base.purchaseOrder, items: [
+        { id: 'line', name: 'Line', quantity: 2, unitPrice: 50 },
+        { id: 'other', name: 'Other', quantity: 2, unitPrice: 50 },
+      ] },
+      receiptItems: [
+        { purchaseOrderItemId: 'line', receivedQuantity: 1e308, rejectedQuantity: 0 },
+        { purchaseOrderItemId: 'other', receivedQuantity: 1e308, rejectedQuantity: 0 },
+      ],
+    });
+    expect(result.exceptions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: 'INVALID_RECEIPT_TOTAL', severity: 'BLOCKING' }),
+    ]));
+    expect(result.matched).toBe(false);
+  });
 });
