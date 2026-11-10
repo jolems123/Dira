@@ -42,4 +42,19 @@ describe('invoiceable quantities across partial receipts', () => {
     });
     expect(result.lines[0].quantity).toBe(4);
   });
+  it('does not expose nonfinite or negative historical PO quantities and prices in invoice previews', () => {
+    const result = invoiceableLines({
+      items: [
+        { id: 'a', name: 'Malformed', quantity: Number.NaN, unitPrice: Number.POSITIVE_INFINITY },
+        { id: 'b', name: 'Negative', quantity: -10, unitPrice: -3 },
+      ],
+      deliveries: [{ kind: 'DISPATCH', items: [
+        { purchaseOrderItemId: 'a', orderedQuantity: 5, receivedQuantity: 0, rejectedQuantity: 0 },
+        { purchaseOrderItemId: 'b', orderedQuantity: 5, receivedQuantity: 0, rejectedQuantity: 0 },
+      ] }],
+      invoices: [],
+    });
+    expect(result.lines.map(line => [line.orderedQuantity, line.quantity, line.unitPrice])).toEqual([[0, 0, 0], [0, 0, 0]]);
+  });
+
 });
