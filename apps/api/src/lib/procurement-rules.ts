@@ -456,7 +456,7 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   const lines = input.purchaseOrder.items.map((poItem) => {
     const rawOrdered = num(poItem.quantity);
     const rawUnitPrice = num(poItem.unitPrice);
-    if (!Number.isFinite(rawOrdered) || rawOrdered < 0 || !Number.isFinite(rawUnitPrice) || rawUnitPrice < 0) {
+    if (poItem.quantity === null || poItem.quantity === undefined || poItem.unitPrice === null || poItem.unitPrice === undefined || !Number.isFinite(rawOrdered) || rawOrdered < 0 || !Number.isFinite(rawUnitPrice) || rawUnitPrice < 0) {
       exceptions.push({
         code: 'INVALID_PO_LINE',
         severity: 'BLOCKING',
