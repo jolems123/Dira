@@ -322,7 +322,13 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
       });
       continue;
     }
-    receivedByLine.set(item.purchaseOrderItemId, (receivedByLine.get(item.purchaseOrderItemId) ?? 0) + net);
+    const aggregate = (receivedByLine.get(item.purchaseOrderItemId) ?? 0) + net;
+    if (!Number.isFinite(aggregate)) {
+      exceptions.push({ code: 'INVALID_RECEIPT_AGGREGATE', severity: 'BLOCKING', message: 'Cumulative goods receipt quantity overflowed', details: { purchaseOrderItemId: item.purchaseOrderItemId } });
+      receivedByLine.set(item.purchaseOrderItemId, 0);
+      continue;
+    }
+    receivedByLine.set(item.purchaseOrderItemId, aggregate);
   }
 
   const invoicedByLine = new Map<string, { quantity: number; unitPrice: number }>();
@@ -362,10 +368,13 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
       });
       continue;
     }
-    invoicedByLine.set(item.purchaseOrderItemId, {
-      quantity: (existing?.quantity ?? 0) + num(item.quantity),
-      unitPrice: num(item.unitPrice),
-    });
+    const aggregate = (existing?.quantity ?? 0) + quantity;
+    if (!Number.isFinite(aggregate)) {
+      exceptions.push({ code: 'INVALID_INVOICE_AGGREGATE', severity: 'BLOCKING', message: 'Cumulative invoice quantity overflowed', details: { purchaseOrderItemId: item.purchaseOrderItemId } });
+      invoicedByLine.set(item.purchaseOrderItemId, { quantity: 0, unitPrice: price });
+      continue;
+    }
+    invoicedByLine.set(item.purchaseOrderItemId, { quantity: aggregate, unitPrice: price });
   }
 
   if (input.purchaseOrder.currency !== input.invoice.currency) {
@@ -540,9 +549,11 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     });
   }
 
-  const receivedValue = round2(
-    lines.reduce((sum, line) => sum + line.receivedQuantity * line.orderedUnitPrice, 0),
-  );
+  const rawReceivedValue = lines.reduce((sum, line) => sum.plus(new Prisma.Decimal(line.receivedQuantity).mul(line.orderedUnitPrice)), new Prisma.Decimal(0));
+  const receivedValue = rawReceivedValue.toNumber();
+  if (!Number.isFinite(receivedValue)) {
+    exceptions.push({ code: 'INVALID_RECEIVED_VALUE', severity: 'BLOCKING', message: 'Received goods value overflowed' });
+  }
 
   const blocking = exceptions.filter((exception) => exception.severity === 'BLOCKING').length;
   const warnings = exceptions.length - blocking;
@@ -556,7 +567,7 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     totals: {
       poTotal: round2(poTotal),
       invoiceTotal: round2(invoiceTotal),
-      receivedValue,
+      receivedValue: Number.isFinite(receivedValue) ? round2(receivedValue) : 0,
       variance: round2(invoiceTotal - poTotal),
     },
   };
