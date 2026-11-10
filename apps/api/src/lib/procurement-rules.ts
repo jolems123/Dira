@@ -533,10 +533,10 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   const rawInvoiceTotal = num(input.invoice.total);
   const rawSubtotal = num(input.invoice.subtotal);
   const rawTax = num(input.invoice.tax);
-  if (!Number.isFinite(rawPoTotal) || rawPoTotal < 0) {
+  if (input.purchaseOrder.total === null || input.purchaseOrder.total === undefined || !Number.isFinite(rawPoTotal) || rawPoTotal < 0) {
     exceptions.push({ code: 'INVALID_PO_TOTAL', severity: 'BLOCKING', message: 'Purchase order total is invalid' });
   }
-  if ([rawInvoiceTotal, rawSubtotal, rawTax].some((value) => !Number.isFinite(value) || value < 0)) {
+  if ([input.invoice.total, input.invoice.subtotal, input.invoice.tax].some((value) => value === null || value === undefined) || [rawInvoiceTotal, rawSubtotal, rawTax].some((value) => !Number.isFinite(value) || value < 0)) {
     exceptions.push({ code: 'INVALID_INVOICE_TOTAL', severity: 'BLOCKING', message: 'Invoice totals or tax are invalid' });
   }
   const poTotal = Number.isFinite(rawPoTotal) && rawPoTotal >= 0 ? rawPoTotal : 0;
