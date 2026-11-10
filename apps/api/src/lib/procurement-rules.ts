@@ -140,11 +140,11 @@ export function invoiceableLines(input: {
     return {
       purchaseOrderItemId: item.id,
       description: item.name,
-      orderedQuantity: num(item.quantity),
+      orderedQuantity: safeQuantity(item.quantity),
       deliveredQuantity,
       invoicedQuantity,
-      quantity: round2(Math.max(0, Math.min(deliveredQuantity, num(item.quantity)) - invoicedQuantity)),
-      unitPrice: num(item.unitPrice),
+      quantity: round2(Math.max(0, Math.min(deliveredQuantity, safeQuantity(item.quantity)) - invoicedQuantity)),
+      unitPrice: safeQuantity(item.unitPrice),
     };
   });
   return { basis, lines };
