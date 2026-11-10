@@ -124,7 +124,9 @@ export function invoiceableLines(input: {
         // doing so would inflate the supplier's billable quantity.
         const rawReceived = num(item.receivedQuantity);
         const rawRejected = num(item.rejectedQuantity);
-        const validReceipt = Number.isFinite(rawReceived) && Number.isFinite(rawRejected)
+        const validReceipt = item.receivedQuantity !== null && item.receivedQuantity !== undefined
+          && item.rejectedQuantity !== null && item.rejectedQuantity !== undefined
+          && Number.isFinite(rawReceived) && Number.isFinite(rawRejected)
           && rawReceived >= 0 && rawRejected >= 0 && rawRejected <= rawReceived;
         const netReceived = validReceipt ? rawReceived - rawRejected : 0;
         received.set(item.purchaseOrderItemId, addPreviewQuantity(received.get(item.purchaseOrderItemId) ?? 0, netReceived));
