@@ -397,3 +397,24 @@ describe('upload security', () => {
     expect(() => resolveStoragePath(root, '../../etc/passwd')).toThrow();
   });
 });
+
+
+describe('historical invoice total integrity', () => {
+  it('blocks nonfinite or negative document totals instead of returning NaN or Infinity', () => {
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -1]) {
+      for (const field of ['total', 'subtotal', 'tax'] as const) {
+        const invoice = { id: 'inv-1', invoiceNumber: 'INV-1', currency: 'UGX', total: 1000, subtotal: 1000, tax: 0,
+          items: [{ purchaseOrderItemId: 'line-1', description: 'Widget', quantity: 10, unitPrice: 100 }] };
+        const result = match({ invoice: { ...invoice, [field]: bad } });
+        expect(result.matched).toBe(false);
+        expect(result.exceptions.map((exception) => exception.code)).toContain('INVALID_INVOICE_TOTAL');
+        expect(Number.isFinite(result.totals.invoiceTotal)).toBe(true);
+        expect(Number.isFinite(result.totals.variance)).toBe(true);
+      }
+      const result = match({ purchaseOrder: { ...basePo, total: bad } });
+      expect(result.matched).toBe(false);
+      expect(result.exceptions.map((exception) => exception.code)).toContain('INVALID_PO_TOTAL');
+      expect(Number.isFinite(result.totals.poTotal)).toBe(true);
+    }
+  });
+});
