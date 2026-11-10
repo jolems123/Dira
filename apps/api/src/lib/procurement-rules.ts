@@ -141,7 +141,7 @@ export function invoiceableLines(input: {
       // Malformed active invoice evidence is uncertain committed quantity, not zero.
       // Reserve the entire preview capacity rather than allowing duplicate billing.
       const rawInvoiced = num(item.quantity);
-      if (!Number.isFinite(rawInvoiced) || rawInvoiced < 0) {
+      if (item.quantity === null || item.quantity === undefined || !Number.isFinite(rawInvoiced) || rawInvoiced < 0) {
         invoiced.set(item.purchaseOrderItemId, Number.MAX_SAFE_INTEGER);
         continue;
       }
