@@ -467,8 +467,20 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     });
   }
 
-  const poTotal = num(input.purchaseOrder.total);
-  const invoiceTotal = num(input.invoice.total);
+  // Legacy persisted documents may predate validation. Fail closed and keep
+  // all derived totals finite rather than propagating NaN/Infinity to approvals.
+  const rawPoTotal = num(input.purchaseOrder.total);
+  const rawInvoiceTotal = num(input.invoice.total);
+  const rawSubtotal = num(input.invoice.subtotal);
+  const rawTax = num(input.invoice.tax);
+  if (!Number.isFinite(rawPoTotal) || rawPoTotal < 0) {
+    exceptions.push({ code: 'INVALID_PO_TOTAL', severity: 'BLOCKING', message: 'Purchase order total is invalid' });
+  }
+  if ([rawInvoiceTotal, rawSubtotal, rawTax].some((value) => !Number.isFinite(value) || value < 0)) {
+    exceptions.push({ code: 'INVALID_INVOICE_TOTAL', severity: 'BLOCKING', message: 'Invoice totals or tax are invalid' });
+  }
+  const poTotal = Number.isFinite(rawPoTotal) && rawPoTotal >= 0 ? rawPoTotal : 0;
+  const invoiceTotal = Number.isFinite(rawInvoiceTotal) && rawInvoiceTotal >= 0 ? rawInvoiceTotal : 0;
   if (invoiceTotal > poTotal + MONEY_EPSILON) {
     exceptions.push({
       code: 'OVER_INVOICING',
@@ -481,7 +493,7 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   const computedSubtotal = round2(
     input.invoice.items.reduce((sum, item) => sum + num(item.quantity) * num(item.unitPrice), 0),
   );
-  const declaredSubtotal = num(input.invoice.subtotal);
+  const declaredSubtotal = Number.isFinite(rawSubtotal) && rawSubtotal >= 0 ? rawSubtotal : 0;
   if (Math.abs(computedSubtotal - declaredSubtotal) > MONEY_EPSILON) {
     exceptions.push({
       code: 'PRICE_MISMATCH',
