@@ -501,9 +501,29 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     });
   }
 
-  const computedSubtotal = round2(
-    input.invoice.items.reduce((sum, item) => sum + num(item.quantity) * num(item.unitPrice), 0),
-  );
+  // Persisted legacy rows can contain nonfinite values or finite operands whose
+  // product/sum overflows. Never let NaN bypass the subtotal mismatch comparison.
+  let subtotalInvalid = false;
+  let subtotalAccumulator = new Prisma.Decimal(0);
+  for (const item of input.invoice.items) {
+    const quantity = num(item.quantity);
+    const price = num(item.unitPrice);
+    if (!Number.isFinite(quantity) || !Number.isFinite(price) || quantity < 0 || price < 0) {
+      subtotalInvalid = true;
+      continue;
+    }
+    subtotalAccumulator = subtotalAccumulator.plus(new Prisma.Decimal(quantity).mul(price));
+  }
+  const computedSubtotalRaw = subtotalAccumulator.toNumber();
+  if (!Number.isFinite(computedSubtotalRaw)) subtotalInvalid = true;
+  if (subtotalInvalid) {
+    exceptions.push({
+      code: 'INVALID_INVOICE_SUBTOTAL',
+      severity: 'BLOCKING',
+      message: 'Invoice line arithmetic contains invalid or overflowing values',
+    });
+  }
+  const computedSubtotal = subtotalInvalid ? 0 : round2(computedSubtotalRaw);
   const declaredSubtotal = Number.isFinite(rawSubtotal) && rawSubtotal >= 0 ? rawSubtotal : 0;
   if (Math.abs(computedSubtotal - declaredSubtotal) > MONEY_EPSILON) {
     exceptions.push({
