@@ -271,7 +271,18 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   const exceptions: MatchException[] = [];
   const requireReceipt = input.requireReceipt ?? true;
 
-  const poItemIds = new Set(input.purchaseOrder.items.map((item) => item.id));
+  const poItemIds = new Set<string>();
+  for (const item of input.purchaseOrder.items) {
+    if (poItemIds.has(item.id)) {
+      exceptions.push({
+        code: 'DUPLICATE_PO_LINE',
+        severity: 'BLOCKING',
+        message: 'Purchase order contains duplicate item identifiers',
+        details: { purchaseOrderItemId: item.id },
+      });
+    }
+    poItemIds.add(item.id);
+  }
   const receivedByLine = new Map<string, number>();
   for (const item of input.receiptItems) {
     const received = num(item.receivedQuantity);
