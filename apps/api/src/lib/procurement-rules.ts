@@ -117,6 +117,7 @@ export function invoiceableLines(input: {
   const received = new Map<string, number>();
   const invalidReceiptLines = new Set<string>();
   const dispatched = new Map<string, number>();
+  const invalidDispatchLines = new Set<string>();
   for (const delivery of input.deliveries) {
     for (const item of delivery.items) {
       if (!item.purchaseOrderItemId) continue;
@@ -138,7 +139,15 @@ export function invoiceableLines(input: {
           : addPreviewQuantity(received.get(item.purchaseOrderItemId) ?? 0, netReceived));
       } else if (delivery.kind === 'DISPATCH') {
         // Unknown historical kinds are not evidence that goods were dispatched.
-        dispatched.set(item.purchaseOrderItemId, addPreviewQuantity(dispatched.get(item.purchaseOrderItemId) ?? 0, safeQuantity(item.orderedQuantity)));
+        // An invalid historical dispatch is not proof of zero dispatch. Quarantine
+        // the PO line even if another dispatch entry is valid, pending audit.
+        const rawDispatched = num(item.orderedQuantity);
+        if (item.orderedQuantity === null || item.orderedQuantity === undefined
+          || !Number.isFinite(rawDispatched) || rawDispatched < 0) {
+          invalidDispatchLines.add(item.purchaseOrderItemId);
+        } else {
+          dispatched.set(item.purchaseOrderItemId, addPreviewQuantity(dispatched.get(item.purchaseOrderItemId) ?? 0, rawDispatched));
+        }
       }
     }
   }
@@ -171,6 +180,7 @@ export function invoiceableLines(input: {
     // Receipt evidence takes precedence per PO line. Other lines can still use dispatch
     // evidence until their first receipt, including a fully rejected (zero-net) receipt.
     const deliveredQuantity = duplicatePoIds.has(item.id) || invalidReceiptLines.has(item.id)
+      || (!received.has(item.id) && invalidDispatchLines.has(item.id))
       ? 0
       : round2((received.has(item.id) ? received : dispatched).get(item.id) ?? 0);
     const invoicedQuantity = round2(invoiced.get(item.id) ?? 0);
