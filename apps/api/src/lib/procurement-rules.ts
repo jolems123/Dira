@@ -128,8 +128,12 @@ export function invoiceableLines(input: {
           && item.rejectedQuantity !== null && item.rejectedQuantity !== undefined
           && Number.isFinite(rawReceived) && Number.isFinite(rawRejected)
           && rawReceived >= 0 && rawRejected >= 0 && rawRejected <= rawReceived;
+        // A malformed receipt is evidence of an attempted receipt, not absence of one.
+        // Keep a zero-net marker so dispatch cannot authorize invoicing this line.
         const netReceived = validReceipt ? rawReceived - rawRejected : 0;
-        received.set(item.purchaseOrderItemId, addPreviewQuantity(received.get(item.purchaseOrderItemId) ?? 0, netReceived));
+        received.set(item.purchaseOrderItemId, validReceipt
+          ? addPreviewQuantity(received.get(item.purchaseOrderItemId) ?? 0, netReceived)
+          : 0);
       } else if (delivery.kind === 'DISPATCH') {
         // Unknown historical kinds are not evidence that goods were dispatched.
         dispatched.set(item.purchaseOrderItemId, addPreviewQuantity(dispatched.get(item.purchaseOrderItemId) ?? 0, safeQuantity(item.orderedQuantity)));
