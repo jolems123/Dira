@@ -429,7 +429,7 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     // Legacy invoice rows may predate monetary input validation. An invalid
     // sibling total must not evade duplicate-invoice review via NaN comparisons.
     const siblingTotal = num(sibling.total);
-    if (!Number.isFinite(siblingTotal) || siblingTotal < 0) {
+    if (sibling.total === null || sibling.total === undefined || !Number.isFinite(siblingTotal) || siblingTotal < 0) {
       exceptions.push({
         code: 'INVALID_SIBLING_INVOICE_TOTAL',
         severity: 'BLOCKING',
