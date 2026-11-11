@@ -164,7 +164,12 @@ export function invoiceableLines(input: {
       orderedQuantity: safeQuantity(item.quantity),
       deliveredQuantity,
       invoicedQuantity,
-      quantity: round2(Math.max(0, Math.min(deliveredQuantity, safeQuantity(item.quantity)) - invoicedQuantity)),
+      // Missing/invalid historical PO price is not authorization to create a new invoice.
+      // A genuine zero-price line is valid; only absent, negative or nonfinite evidence fails closed.
+      quantity: item.unitPrice === null || item.unitPrice === undefined
+        || !Number.isFinite(num(item.unitPrice)) || num(item.unitPrice) < 0
+        ? 0
+        : round2(Math.max(0, Math.min(deliveredQuantity, safeQuantity(item.quantity)) - invoicedQuantity)),
       unitPrice: safeQuantity(item.unitPrice),
     };
   });
