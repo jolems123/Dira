@@ -115,6 +115,7 @@ export function invoiceableLines(input: {
   const addPreviewQuantity = (current: number, addition: number): number =>
     Math.min(Number.MAX_SAFE_INTEGER, current + addition);
   const received = new Map<string, number>();
+  const invalidReceiptLines = new Set<string>();
   const dispatched = new Map<string, number>();
   for (const delivery of input.deliveries) {
     for (const item of delivery.items) {
@@ -130,10 +131,11 @@ export function invoiceableLines(input: {
           && rawReceived >= 0 && rawRejected >= 0 && rawRejected <= rawReceived;
         // A malformed receipt is evidence of an attempted receipt, not absence of one.
         // Keep a zero-net marker so dispatch cannot authorize invoicing this line.
+        if (!validReceipt) invalidReceiptLines.add(item.purchaseOrderItemId);
         const netReceived = validReceipt ? rawReceived - rawRejected : 0;
-        received.set(item.purchaseOrderItemId, validReceipt
-          ? addPreviewQuantity(received.get(item.purchaseOrderItemId) ?? 0, netReceived)
-          : 0);
+        received.set(item.purchaseOrderItemId, invalidReceiptLines.has(item.purchaseOrderItemId)
+          ? 0
+          : addPreviewQuantity(received.get(item.purchaseOrderItemId) ?? 0, netReceived));
       } else if (delivery.kind === 'DISPATCH') {
         // Unknown historical kinds are not evidence that goods were dispatched.
         dispatched.set(item.purchaseOrderItemId, addPreviewQuantity(dispatched.get(item.purchaseOrderItemId) ?? 0, safeQuantity(item.orderedQuantity)));
@@ -160,7 +162,9 @@ export function invoiceableLines(input: {
   const lines = input.items.map((item) => {
     // Receipt evidence takes precedence per PO line. Other lines can still use dispatch
     // evidence until their first receipt, including a fully rejected (zero-net) receipt.
-    const deliveredQuantity = round2((received.has(item.id) ? received : dispatched).get(item.id) ?? 0);
+    const deliveredQuantity = invalidReceiptLines.has(item.id)
+      ? 0
+      : round2((received.has(item.id) ? received : dispatched).get(item.id) ?? 0);
     const invoicedQuantity = round2(invoiced.get(item.id) ?? 0);
     return {
       purchaseOrderItemId: item.id,
