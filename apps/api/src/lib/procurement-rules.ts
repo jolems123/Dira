@@ -157,12 +157,20 @@ export function invoiceableLines(input: {
       invoiced.set(item.purchaseOrderItemId, addPreviewQuantity(invoiced.get(item.purchaseOrderItemId) ?? 0, rawInvoiced));
     }
   }
+  // A legacy PO with duplicate line IDs cannot unambiguously allocate a receipt
+  // or prior invoice to a single row. Quarantine every duplicate from previews.
+  const seenPoIds = new Set<string>();
+  const duplicatePoIds = new Set<string>();
+  for (const item of input.items) {
+    if (seenPoIds.has(item.id)) duplicatePoIds.add(item.id);
+    seenPoIds.add(item.id);
+  }
   const anyReceipt = received.size > 0;
   const basis: 'RECEIVED' | 'DISPATCHED' = anyReceipt ? 'RECEIVED' : 'DISPATCHED';
   const lines = input.items.map((item) => {
     // Receipt evidence takes precedence per PO line. Other lines can still use dispatch
     // evidence until their first receipt, including a fully rejected (zero-net) receipt.
-    const deliveredQuantity = invalidReceiptLines.has(item.id)
+    const deliveredQuantity = duplicatePoIds.has(item.id) || invalidReceiptLines.has(item.id)
       ? 0
       : round2((received.has(item.id) ? received : dispatched).get(item.id) ?? 0);
     const invoicedQuantity = round2(invoiced.get(item.id) ?? 0);
@@ -174,7 +182,7 @@ export function invoiceableLines(input: {
       invoicedQuantity,
       // Missing/invalid historical PO price is not authorization to create a new invoice.
       // A genuine zero-price line is valid; only absent, negative or nonfinite evidence fails closed.
-      quantity: item.unitPrice === null || item.unitPrice === undefined
+      quantity: duplicatePoIds.has(item.id) || item.unitPrice === null || item.unitPrice === undefined
         || !Number.isFinite(num(item.unitPrice)) || num(item.unitPrice) < 0
         ? 0
         : round2(Math.max(0, Math.min(deliveredQuantity, safeQuantity(item.quantity)) - invoicedQuantity)),
