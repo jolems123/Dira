@@ -741,3 +741,10 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Code inspection: `procurement-rules.ts` still rounds money to 2 decimals and defaults tax to Uganda VAT 18%. This is not safe as a universal global tax/currency policy. Do not activate jurisdiction-specific compliance claims or live billing.
 - NEEDS ME: eligible independent runner with disposable PostgreSQL and actual recorded passing tests; historical credential rotation; country-reviewed tax profiles, final plan prices and Paddle sandbox credentials; Railway/private S3/email and privacy/legal approval. Full tenant isolation, approval limits and invoice gates remain release blockers.
 - This checkpoint is evidence/documentation only; no application-code fix or successful test claimed.
+
+## 2026-11-13 02:44 EAT — verification checkpoint
+- Re-read README, POSITIONING, tracker and open PR search. Security PR #3 remains the sole open PR; its 265-commit branch is 0 behind main and requires a consolidated review before any merge.
+- Commit `90dbc45ca0f469e9e2fdd91590a1965de3ccd493` has GitHub Actions `Dira checks` run #245 (`43322256417`) completed FAILURE; job `131545654776` reports no recorded steps or logs URL. This is not evidence of an executed failing application test, and no passing tests were observed. No paid rerun initiated.
+- Fresh compare: `jolems123-patch-1` 0 ahead/10 behind main; `uganda-currency` identical to main. No delete-ref connector action; neither branch deleted.
+- Re-inspected procurement-rules.ts: money rounding remains fixed at two decimals and default VAT remains Uganda 18%. International finance is not ready; do not infer jurisdictional compliance.
+- NEEDS ME: independent runner and disposable PostgreSQL with retained full test evidence; critical tenant/supplier isolation and approval policy review; historical credential rotation; approved tax profiles and final subscription pricing; Paddle sandbox credentials, Railway/private S3/email, legal/privacy sign-off. No live supplier transfers or live subscription billing; no merge or deployment.
