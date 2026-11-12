@@ -13,7 +13,14 @@ function moneyDecimal(value: number | Prisma.Decimal): Prisma.Decimal {
 }
 
 export function round2(value: number): number {
-  return moneyDecimal(value).toNumber();
+  if (!Number.isFinite(value)) {
+    throw new RangeError('Invalid monetary amount: expected a finite number');
+  }
+  const rounded = moneyDecimal(value);
+  if (!rounded.isFinite() || rounded.abs().gt(Number.MAX_SAFE_INTEGER)) {
+    throw new RangeError('Invalid monetary amount: exceeds safe numeric range');
+  }
+  return rounded.toNumber();
 }
 
 /** Uganda standard-rate VAT (VAT Act, Cap. 349). */
