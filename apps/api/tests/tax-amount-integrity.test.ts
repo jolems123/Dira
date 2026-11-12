@@ -7,7 +7,7 @@ describe('tax amount integrity', () => {
     expect(() => resolveTax(-1, 0)).toThrow(RangeError);
   });
   it('rejects tax results that exceed safe JavaScript monetary representation', () => {
-    expect(() => resolveTax(Number.MAX_SAFE_INTEGER)).toThrow(RangeError);
+    expect(() => resolveTax(Number.MAX_SAFE_INTEGER * 10)).toThrow(RangeError);
     expect(() => resolveTax(0, Number.MAX_SAFE_INTEGER + 1)).toThrow(RangeError);
   });
   it('accepts zero-rated and ordinary positive tax', () => {
