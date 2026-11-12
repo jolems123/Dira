@@ -230,6 +230,25 @@ describe('Uganda VAT', () => {
   });
 });
 
+describe('untrusted document amount validation', () => {
+  it('rejects negative or nonfinite explicit tax rather than reducing an invoice total', () => {
+    for (const tax of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => resolveTax(100, tax)).toThrow();
+      expect(() => calculateTotals({ lines: [{ quantity: 1, unitPrice: 100 }], tax })).toThrow();
+    }
+  });
+  it('rejects negative or nonfinite quantity, price, delivery and discount inputs', () => {
+    const line = (quantity: number, unitPrice: number) => [{ quantity, unitPrice }];
+    for (const lines of [line(-1, 100), line(1, -1), line(Number.NaN, 100), line(1, Number.POSITIVE_INFINITY)]) {
+      expect(() => calculateTotals({ lines, tax: 0 })).toThrow();
+    }
+    for (const value of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => calculateTotals({ lines: line(1, 100), deliveryFee: value, tax: 0 })).toThrow();
+      expect(() => calculateTotals({ lines: line(1, 100), discount: value, tax: 0 })).toThrow();
+    }
+  });
+});
+
 describe('decimal rounding safety', () => {
   it('rounds half a cent deterministically rather than using binary toFixed', () => {
     expect(round2(1.005)).toBe(1.01);
