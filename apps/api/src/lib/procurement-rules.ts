@@ -75,6 +75,12 @@ export function calculateTotals(input: { lines: PricedLine[]; deliveryFee?: numb
     ? moneyDecimal(Prisma.Decimal.max(taxableAmount, 0).mul(UGANDA_VAT_RATE))
     : moneyDecimal(input.tax);
   const totalAmount = moneyDecimal(taxableAmount.plus(taxAmount));
+  // API and persistence consumers use JS numbers; reject values that cannot be
+  // represented safely rather than returning Infinity or an imprecise integer.
+  const monetaryOutputs = [...lineAmounts, subtotalAmount, deliveryAmount, discountAmount, taxAmount, totalAmount];
+  if (monetaryOutputs.some((amount) => !amount.isFinite() || amount.abs().gt(Number.MAX_SAFE_INTEGER))) {
+    throw new RangeError('Invalid procurement total: amount exceeds safe numeric range');
+  }
   return {
     lineTotals,
     subtotal: subtotalAmount.toNumber(),
