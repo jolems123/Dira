@@ -24,12 +24,14 @@ export const UGANDA_VAT_RATE = 0.18;
  * not VAT-registered, or selling exempt/zero-rated goods, can submit 0.
  */
 export function resolveTax(taxableAmount: number, explicitTax?: number): number {
-  assertNonnegativeFiniteAmount(taxableAmount, 'taxable amount', true);
-  if (explicitTax !== undefined) {
-    assertNonnegativeFiniteAmount(explicitTax, 'explicit tax');
-    return round2(explicitTax);
+  assertNonnegativeFiniteAmount(taxableAmount, 'taxable amount');
+  const result = explicitTax !== undefined
+    ? (assertNonnegativeFiniteAmount(explicitTax, 'explicit tax'), moneyDecimal(explicitTax))
+    : moneyDecimal(new Prisma.Decimal(taxableAmount).mul(UGANDA_VAT_RATE));
+  if (!result.isFinite() || result.abs().gt(Number.MAX_SAFE_INTEGER)) {
+    throw new RangeError('Invalid tax: amount exceeds safe numeric range');
   }
-  return round2(Math.max(taxableAmount, 0) * UGANDA_VAT_RATE);
+  return result.toNumber();
 }
 
 /** Reject malformed or negative money before it reaches a persisted document. */
