@@ -65,6 +65,11 @@ export function calculateTotals(input: { lines: PricedLine[]; deliveryFee?: numb
   const subtotalAmount = moneyDecimal(lineAmounts.reduce((sum, amount) => sum.plus(amount), new Prisma.Decimal(0)));
   const deliveryAmount = moneyDecimal(input.deliveryFee ?? 0);
   const discountAmount = moneyDecimal(input.discount ?? 0);
+  // A discount cannot exceed the payable pre-tax amount; otherwise a malformed
+  // quote/invoice could persist a negative balance despite nonnegative inputs.
+  if (discountAmount.gt(subtotalAmount.plus(deliveryAmount))) {
+    throw new RangeError('Invalid discount: exceeds subtotal plus delivery');
+  }
   const taxableAmount = subtotalAmount.plus(deliveryAmount).minus(discountAmount);
   const taxAmount = input.tax === undefined
     ? moneyDecimal(Prisma.Decimal.max(taxableAmount, 0).mul(UGANDA_VAT_RATE))
