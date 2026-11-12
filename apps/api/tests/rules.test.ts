@@ -225,8 +225,8 @@ describe('Uganda VAT', () => {
     expect(resolveTax(1_000_000, 50_000)).toBe(50_000);
   });
 
-  it('never charges VAT on a negative taxable amount', () => {
-    expect(resolveTax(-100)).toBe(0);
+  it('rejects negative taxable amounts rather than silently converting them to zero', () => {
+    expect(() => resolveTax(-100)).toThrow(RangeError);
   });
 });
 
