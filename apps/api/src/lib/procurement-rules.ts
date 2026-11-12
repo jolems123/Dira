@@ -104,8 +104,11 @@ export function calculateTotals(input: { lines: PricedLine[]; deliveryFee?: numb
 export function paymentTermDays(terms: string | null | undefined, fallback = 30): number {
   if (!terms) return fallback;
   if (/\b(cod|cash on delivery|on delivery|immediate|due on receipt)\b/i.test(terms)) return 0;
-  const match = terms.match(/(\d{1,3})/);
-  return match ? Number(match[1]) : fallback;
+  // Do not mistake invoice references, years or arbitrary numbers for payment terms.
+  // Recognize explicit NET n / n days only, within a bounded due-date window.
+  const match = terms.match(/\b(?:net\s*([0-9]{1,3})|([0-9]{1,3})\s*days?)\b/i);
+  const days = match ? Number(match[1] ?? match[2]) : NaN;
+  return Number.isInteger(days) && days >= 1 && days <= 365 ? days : fallback;
 }
 
 export function addDays(date: Date, days: number): Date {
