@@ -24,8 +24,19 @@ export const UGANDA_VAT_RATE = 0.18;
  * not VAT-registered, or selling exempt/zero-rated goods, can submit 0.
  */
 export function resolveTax(taxableAmount: number, explicitTax?: number): number {
-  if (explicitTax !== undefined) return round2(explicitTax);
+  assertNonnegativeFiniteAmount(taxableAmount, 'taxable amount', true);
+  if (explicitTax !== undefined) {
+    assertNonnegativeFiniteAmount(explicitTax, 'explicit tax');
+    return round2(explicitTax);
+  }
   return round2(Math.max(taxableAmount, 0) * UGANDA_VAT_RATE);
+}
+
+/** Reject malformed or negative money before it reaches a persisted document. */
+function assertNonnegativeFiniteAmount(value: number, label: string, allowNegative = false): void {
+  if (!Number.isFinite(value) || (!allowNegative && value < 0)) {
+    throw new RangeError(`Invalid ${label}: expected a finite ${allowNegative ? 'number' : 'nonnegative number'}`);
+  }
 }
 
 export interface PricedLine {
@@ -38,6 +49,15 @@ export interface PricedLine {
  * VAT is charged on subtotal + delivery - discount unless an explicit tax amount is given.
  */
 export function calculateTotals(input: { lines: PricedLine[]; deliveryFee?: number; discount?: number; tax?: number }) {
+  for (const line of input.lines) {
+    assertNonnegativeFiniteAmount(line.quantity, 'line quantity');
+    if (line.unitPrice !== null && line.unitPrice !== undefined) {
+      assertNonnegativeFiniteAmount(line.unitPrice, 'unit price');
+    }
+  }
+  assertNonnegativeFiniteAmount(input.deliveryFee ?? 0, 'delivery fee');
+  assertNonnegativeFiniteAmount(input.discount ?? 0, 'discount');
+  if (input.tax !== undefined) assertNonnegativeFiniteAmount(input.tax, 'explicit tax');
   // Round individual extended prices first, then add as exact decimal values.
   const lineAmounts = input.lines.map((line) =>
     moneyDecimal(new Prisma.Decimal(line.quantity).mul(line.unitPrice ?? 0)));
