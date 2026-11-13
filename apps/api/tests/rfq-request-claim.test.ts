@@ -14,4 +14,12 @@ describe('atomic RFQ creation request claim', () => {
     const updateMany = vi.fn().mockResolvedValue({ count: 0 });
     expect(await claimRequestForRfq({ purchaseRequest: { updateMany } }, 'request-1', 'other-buyer')).toBe(false);
   });
+  it('fails closed if a malformed database adapter reports multiple claimed rows', async () => {
+    const updateMany = vi.fn().mockResolvedValue({ count: 2 });
+    expect(await claimRequestForRfq({ purchaseRequest: { updateMany } }, 'request-1', 'buyer-1')).toBe(false);
+  });
+  it('propagates database failures instead of claiming success', async () => {
+    const updateMany = vi.fn().mockRejectedValue(new Error('database unavailable'));
+    await expect(claimRequestForRfq({ purchaseRequest: { updateMany } }, 'request-1', 'buyer-1')).rejects.toThrow('database unavailable');
+  });
 });
