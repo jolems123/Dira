@@ -448,3 +448,17 @@ describe('recurring procurement schedule validation', () => {
     expect(() => advanceSchedule(new Date('2026-01-01T00:00:00Z'), 'WEEKLY', new Date(NaN))).toThrow(RangeError);
   });
 });
+
+
+describe('quote expiration fail-closed validation', () => {
+  it('rejects invalid persisted expiry dates instead of treating quotes as unexpired', () => {
+    expect(() => isQuoteExpired(new Date('invalid'))).toThrow(RangeError);
+    expect(() => isQuoteExpired(new Date('2026-01-01T00:00:00Z'), new Date('invalid'))).toThrow(RangeError);
+  });
+  it('retains null expiry semantics and checks valid expiration boundaries', () => {
+    const now = new Date('2026-01-02T00:00:00Z');
+    expect(isQuoteExpired(null, now)).toBe(false);
+    expect(isQuoteExpired(now, now)).toBe(false);
+    expect(isQuoteExpired(new Date('2026-01-01T00:00:00Z'), now)).toBe(true);
+  });
+});
