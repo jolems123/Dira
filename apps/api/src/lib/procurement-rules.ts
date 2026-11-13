@@ -316,6 +316,10 @@ export function assertTransition(map: Record<string, string[]>, from: string, to
 }
 
 export function isQuoteExpired(validUntil: Date | null | undefined, now = new Date()): boolean {
+  // An invalid persisted expiry must never make an expired quote eligible for award.
+  if (!Number.isFinite(now.getTime()) || (validUntil && !Number.isFinite(validUntil.getTime()))) {
+    throw new RangeError('Invalid quote expiry or comparison date');
+  }
   if (!validUntil) return false;
   return validUntil.getTime() < now.getTime();
 }
