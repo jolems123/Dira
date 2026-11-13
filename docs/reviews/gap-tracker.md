@@ -771,3 +771,10 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Source inspection: `apps/api/src/lib/procurement-rules.ts` still hardcodes 2-decimal rounding and Uganda 18% VAT. Global finance remains OPEN.
 - **NEEDS ME (current):** independent disposable-PostgreSQL security test execution and results; GitHub Actions billing/runner logs; historical credential rotation; approved plan pricing and country-reviewed tax profiles; Paddle sandbox credentials (not live activation); Railway, private S3, email and legal/privacy approval.
 - No code change, verified test, merge or deployment this checkpoint. Do not merge security PR until tenant isolation, supplier authorization, approval limits and checks are verified. Supplier payment execution and live billing remain prohibited.
+
+## 2026-11-13 schedule validation and release check
+- Security PR #3 remains draft/unmerged. Head `c4c42b4` had Actions run #250 (`43361110192`) completed FAILURE; no passing test evidence. Do not assume the failure is an application defect or merge without executable checks and reviews.
+- Tests-first change: `70e754e` added regression coverage for invalid/fractional/nonfinite schedule offsets and invalid/overflowing dates; `7d7d380` added fail-closed validation to `addDays`. These commits are **not yet test-verified**. No claim of passing tests or production readiness.
+- Fresh compare: `jolems123-patch-1` 0 ahead/10 behind main; `uganda-currency` identical to main. No delete-ref action exposed; neither deleted.
+- NEEDS ME: recover usable runner/test execution (prefer local/disposable PostgreSQL to avoid billable Actions); rotate any historical secrets; approve reviewed country tax profiles and final prices; supply Paddle sandbox, Railway, private storage, email and legal acceptance. Supplier payments remain record-only; live subscription billing is not authorized.
+- Critical cross-tenant/supplier authorization, PO approval policy, refresh family isolation, and remaining four phases remain OPEN. No merge/deploy performed.
