@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
 import { claimPurchaseRequestDecision } from '../lib/approval-claim';
+import { claimRequestForRfq, RfqRequestAlreadyClaimedError } from '../lib/rfq-request-claim';
 import { claimPurchaseRequestSubmission } from '../lib/request-submit-claim';
 import { maySubmitPurchaseRequest } from '../lib/request-ownership';
 import {
@@ -370,7 +371,7 @@ procurementRouter.post('/rfqs', requireRole('OWNER', 'ADMIN', 'PROCUREMENT'), as
       include: { items: true },
     });
     if (!purchaseRequest) return res.status(404).json({ message: 'Purchase request not found' });
-    if (!['APPROVED', 'RFQ_CREATED'].includes(purchaseRequest.status)) {
+    if (purchaseRequest.status !== 'APPROVED') {
       return res.status(409).json({ message: `RFQ can only be created from approved requests. Current status is ${purchaseRequest.status.toLowerCase()}` });
     }
     if (purchaseRequest.items.length === 0) return res.status(409).json({ message: 'Purchase request has no items' });
@@ -414,15 +415,16 @@ procurementRouter.post('/rfqs', requireRole('OWNER', 'ADMIN', 'PROCUREMENT'), as
         },
         include: { items: true, suppliers: true },
       });
-      await tx.purchaseRequest.update({
-        where: { id: purchaseRequest.id },
-        data: { status: 'RFQ_CREATED' },
-      });
+      const claimed = await claimRequestForRfq(tx, purchaseRequest.id, req.user!.organizationId!);
+      if (!claimed) throw new RfqRequestAlreadyClaimedError();
       return created;
     });
 
     return res.status(201).json(rfq);
-  } catch (error) { return next(error); }
+  } catch (error) {
+    if (error instanceof RfqRequestAlreadyClaimedError) return res.status(409).json({ message: error.message });
+    return next(error);
+  }
 });
 
 procurementRouter.post('/rfqs/:id/publish', requireRole('OWNER', 'ADMIN', 'PROCUREMENT'), async (req: AuthenticatedRequest, res, next) => {
