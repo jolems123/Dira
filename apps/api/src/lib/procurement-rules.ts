@@ -127,6 +127,10 @@ export type ScheduleFrequencyValue = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY';
 
 /** Next occurrence after `from`. Month steps clamp to the last day, so 31 Jan -> 28/29 Feb. */
 export function nextOccurrence(from: Date, frequency: ScheduleFrequencyValue): Date {
+  if (!Number.isFinite(from.getTime())) throw new RangeError('Invalid recurring schedule date');
+  if (frequency !== 'WEEKLY' && frequency !== 'MONTHLY' && frequency !== 'QUARTERLY') {
+    throw new RangeError('Invalid recurring schedule frequency');
+  }
   if (frequency === 'WEEKLY') return addDays(from, 7);
   const months = frequency === 'MONTHLY' ? 1 : 3;
   const target = new Date(from.getTime());
@@ -140,6 +144,7 @@ export function nextOccurrence(from: Date, frequency: ScheduleFrequencyValue): D
 
 /** Advances a schedule past `now`, skipping missed periods so a long outage creates one draft, not a backlog. */
 export function advanceSchedule(nextRunAt: Date, frequency: ScheduleFrequencyValue, now: Date): Date {
+  if (!Number.isFinite(now.getTime())) throw new RangeError('Invalid schedule comparison date');
   let candidate = nextOccurrence(nextRunAt, frequency);
   while (candidate <= now) candidate = nextOccurrence(candidate, frequency);
   return candidate;
