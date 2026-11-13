@@ -293,7 +293,7 @@ procurementRouter.post('/purchase-requests/:id/approve', requireRole('OWNER', 'A
     if (request.requestedBy === req.user!.id) return res.status(403).json({ message: 'Requesters cannot approve their own purchase requests' });
     const updated = await prisma.$transaction(async (tx) => {
       const claimed = await claimPurchaseRequestDecision(tx, {
-        id: request.id, organizationId: req.user!.organizationId!, status: 'APPROVED',
+        id: request.id, organizationId: req.user!.organizationId!, status: 'APPROVED', actorId: req.user!.id,
       });
       if (!claimed) return null;
       await tx.approvalDecision.create({
@@ -316,7 +316,7 @@ procurementRouter.post('/purchase-requests/:id/reject', requireRole('OWNER', 'AD
     if (request.requestedBy === req.user!.id) return res.status(403).json({ message: 'Requesters cannot reject their own purchase requests' });
     const updated = await prisma.$transaction(async (tx) => {
       const claimed = await claimPurchaseRequestDecision(tx, {
-        id: request.id, organizationId: req.user!.organizationId!, status: 'REJECTED',
+        id: request.id, organizationId: req.user!.organizationId!, status: 'REJECTED', actorId: req.user!.id,
       });
       if (!claimed) return null;
       await tx.approvalDecision.create({
