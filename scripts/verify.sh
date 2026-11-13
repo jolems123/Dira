@@ -10,6 +10,20 @@ if [[ "${CI_DATABASE_URL}" != postgresql://* && "${CI_DATABASE_URL}" != postgres
   echo 'ERROR: CI_DATABASE_URL must use PostgreSQL.' >&2
   exit 2
 fi
+# The disposable flag alone is insufficient: reject remote/shared hosts and
+# non-test database names before any Prisma migration or test process starts.
+if ! node -e '
+  try {
+    const u = new URL(process.env.CI_DATABASE_URL);
+    const allowed = new Set(["localhost", "127.0.0.1", "[::1]", "postgres"]);
+    const name = decodeURIComponent(u.pathname.slice(1));
+    if (!allowed.has(u.hostname) || !/^[a-zA-Z0-9_]+_(ci|test)$/.test(name)
+      || u.searchParams.has("host") || u.searchParams.has("socket")) process.exit(1);
+  } catch { process.exit(1); }
+'; then
+  echo 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.' >&2
+  exit 2
+fi
 if [[ "${CI_DATABASE_IS_DISPOSABLE:-}" != 'yes' ]]; then
   echo 'ERROR: set CI_DATABASE_IS_DISPOSABLE=yes only for an isolated test database.' >&2
   exit 2
