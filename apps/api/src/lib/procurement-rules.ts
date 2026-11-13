@@ -149,6 +149,13 @@ export function nextOccurrence(from: Date, frequency: ScheduleFrequencyValue): D
 export function advanceSchedule(nextRunAt: Date, frequency: ScheduleFrequencyValue, now: Date): Date {
   if (!Number.isFinite(now.getTime())) throw new RangeError('Invalid schedule comparison date');
   let candidate = nextOccurrence(nextRunAt, frequency);
+  if (frequency === 'WEEKLY' && candidate <= now) {
+    // Jump across missed weeks in constant time; long outages must not create
+    // an unbounded synchronous loop on a request or background worker.
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+    const skippedWeeks = Math.floor((now.getTime() - candidate.getTime()) / weekMs) + 1;
+    candidate = addDays(candidate, skippedWeeks * 7);
+  }
   while (candidate <= now) candidate = nextOccurrence(candidate, frequency);
   return candidate;
 }
