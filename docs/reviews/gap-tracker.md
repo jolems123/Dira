@@ -851,3 +851,10 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Branch ancestry rechecked: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` identical to main. No branch deletion connector action.
 - **NEEDS ME:** locally executable test environment/disposable PostgreSQL and verifiable checks; credential rotation, final plan prices, country-reviewed tax profiles, Paddle sandbox configuration, Railway/S3/email configuration and legal/privacy acceptance. No supplier payments or live billing activation.
 - All five phases remain incomplete; Security PR #3 remains unmerged pending passing tests, reviews and branch protection.
+
+## 2026-11-13 18:44 EAT — RFQ claim failure-mode regression coverage
+- Re-read README.md, docs/POSITIONING.md, this tracker, and searched open PRs. PR #3 remains the sole open PR, draft and unmerged. Security remains the first release gate.
+- Added regression cases to `apps/api/tests/rfq-request-claim.test.ts` (`22fdba5`) asserting a malformed update count of 2 is rejected and database errors propagate. Existing implementation already requires `count === 1`; no application logic changed in this checkpoint. **Tests committed, not executed; no pass claimed.** Disposable PostgreSQL concurrency and rollback verification still required.
+- Inspected Actions run #278 (`43436409743`): `checks` job completed FAILURE with steps=null and logs_url=null; root cause and test execution cannot be determined. No paid rerun initiated.
+- Rechecked ancestry: `jolems123-patch-1` 0 ahead/10 behind main; `uganda-currency` 0 ahead/0 behind. Neither contains unique commits. No supported branch-delete action is exposed; neither deleted.
+- **NEEDS ME:** independent executable local runner and disposable PostgreSQL with retained logs; tenant/supplier authorization and approval-policy/PO/invoice acceptance; rotate historical credentials; approve jurisdiction-reviewed tax rules and subscription prices; Paddle sandbox credentials only; Railway/private object storage/email and privacy/legal signoff. All five phases OPEN. No merge, deployment, supplier fund movement or live subscription activation.
