@@ -843,3 +843,11 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Fresh ancestry checks: `jolems123-patch-1` 0 ahead/10 behind main; `uganda-currency` identical to main. No supported branch deletion action; neither removed.
 - NEEDS ME: independent executable test runner and disposable PostgreSQL; historical credential rotation; approval thresholds and overrides; reviewed tax profiles and plan prices; Paddle sandbox credentials (do not activate live billing); Railway/private S3/email configuration and legal/privacy acceptance. Continue tenant/supplier authorization, PO segregation, and invoice-match gates before considering security phase complete.
 - No passing checks, merge, production deployment, supplier money movement or live subscription activation established in this run.
+
+## 2026-11-13 RFQ creation concurrency hardening
+- Added tests first in `apps/api/tests/rfq-request-claim.test.ts` (commit `51d958e`), then atomic claim helper `apps/api/src/lib/rfq-request-claim.ts` (`9e0d7df`) and route integration (`0a243d3`). RFQ creation now claims an APPROVED request with buyer-organisation scope in the same transaction as RFQ insertion; a failed claim rolls back the inserted RFQ and returns HTTP 409. Requests already in RFQ_CREATED no longer create another RFQ through this route.
+- **UNVERIFIED:** tests were committed, not executed; disposable PostgreSQL concurrency integration testing remains required. Check migration and TypeScript compilation before merging.
+- GitHub Actions run #278 (`43436409743`) on prior head `853aa95` completed **failure** on 2026-11-13; no passing evidence. Do not initiate paid CI reruns without approval; diagnose GitHub billing/runner availability and use local tests.
+- Branch ancestry rechecked: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` identical to main. No branch deletion connector action.
+- **NEEDS ME:** locally executable test environment/disposable PostgreSQL and verifiable checks; credential rotation, final plan prices, country-reviewed tax profiles, Paddle sandbox configuration, Railway/S3/email configuration and legal/privacy acceptance. No supplier payments or live billing activation.
+- All five phases remain incomplete; Security PR #3 remains unmerged pending passing tests, reviews and branch protection.
