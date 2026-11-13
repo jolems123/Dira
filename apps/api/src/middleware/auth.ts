@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { verifyAccessToken } from '../lib/access-token';
+import { selectActiveMembership } from '../lib/active-membership';
 import { prisma } from '../db';
 import { env } from '../lib/env';
 
@@ -16,14 +17,15 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     const payload = verifyAccessToken(token, env.jwtAccessSecret);
     const user = await prisma.user.findUnique({
       where: { id: String(payload.sub) },
-      include: { organizationMembers: { where: { status: 'ACTIVE' }, take: 1, orderBy: { createdAt: 'asc' } } },
+      include: { organizationMembers: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } } },
     });
     if (!user || user.status !== 'ACTIVE') return res.status(401).json({ message: 'Invalid session' });
-    if (user.organizationMembers.length === 0) return res.status(403).json({ message: 'Active organisation membership required' });
+    const membership = selectActiveMembership(user.organizationMembers);
+    if (!membership) return res.status(403).json({ message: 'Active organisation membership required' });
     req.user = {
       id: user.id,
-      organizationId: user.organizationMembers[0]?.organizationId,
-      role: user.organizationMembers[0]?.role,
+      organizationId: membership.organizationId,
+      role: membership.role,
     };
     return next();
   } catch {
