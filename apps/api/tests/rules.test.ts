@@ -439,6 +439,19 @@ describe('historical invoice total integrity', () => {
 });
 
 
+describe('recurring schedule date overflow', () => {
+  it('rejects monthly and quarterly occurrences outside the supported Date range', () => {
+    const nearLimit = new Date(8_640_000_000_000_000);
+    expect(() => nextOccurrence(nearLimit, 'MONTHLY')).toThrow(RangeError);
+    expect(() => nextOccurrence(nearLimit, 'QUARTERLY')).toThrow(RangeError);
+  });
+
+  it('never returns an invalid future occurrence after date overflow', () => {
+    const nearLimit = new Date(8_640_000_000_000_000);
+    expect(() => advanceSchedule(nearLimit, 'MONTHLY', nearLimit)).toThrow(RangeError);
+  });
+});
+
 describe('recurring procurement schedule validation', () => {
   it('rejects invalid recurrence values rather than silently scheduling quarterly', () => {
     expect(() => nextOccurrence(new Date('2026-01-01T00:00:00Z'), 'DAILY' as never)).toThrow(RangeError);
