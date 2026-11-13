@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { Request, Response, Router } from 'express';
 import crypto from 'node:crypto';
 import { signAccessToken } from '../lib/access-token';
+import { selectActiveMembership } from '../lib/active-membership';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { env } from '../lib/env';
@@ -86,16 +87,18 @@ authRouter.post('/login', async (req, res, next) => {
   try {
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: 'Validation failed', errors: parsed.error.flatten() });
-    const user = await prisma.user.findUnique({ where: { email: parsed.data.email }, include: { organizationMembers: { take: 1 } } });
+    const user = await prisma.user.findUnique({ where: { email: parsed.data.email }, include: { organizationMembers: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } } } });
     if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) return res.status(401).json({ message: 'Invalid email or password' });
     if (user.status !== 'ACTIVE') return res.status(403).json({ message: 'Account is not active' });
+    const membership = selectActiveMembership(user.organizationMembers);
+    if (!membership) return res.status(403).json({ message: 'Active organisation membership required' });
     const issued = tokens(user.id);
     await prisma.$transaction([
       prisma.refreshToken.create({ data: { userId: user.id, tokenHash: hashToken(issued.refreshToken), expiresAt: new Date(Date.now() + 7 * 86400000) } }),
       prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }),
     ]);
     setRefreshCookie(res, issued.refreshToken);
-    return res.json({ accessToken: issued.accessToken, user: publicUser(user, user.organizationMembers[0]) });
+    return res.json({ accessToken: issued.accessToken, user: publicUser(user, membership) });
   } catch (error) {
     return next(error);
   }
@@ -155,10 +158,10 @@ authRouter.post('/logout', requireAuth, async (req: AuthenticatedRequest, res) =
 authRouter.get('/me', requireAuth, async (req: AuthenticatedRequest, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
-    include: { organizationMembers: { take: 1, include: { organization: true } } },
+    include: { organizationMembers: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' }, include: { organization: true } } },
   });
   if (!user) return res.status(404).json({ message: 'User not found' });
-  const membership = user.organizationMembers[0];
+  const membership = selectActiveMembership(user.organizationMembers);
   return res.json({
     user: publicUser(user, membership),
     organization: membership
