@@ -749,3 +749,11 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Inspected procurement-rules.ts: fixed 2-decimal rounding and default 18% Uganda VAT persist. Country-specific global finance cannot be called complete.
 - NEEDS ME: eligible runner or isolated local machine with disposable PostgreSQL and retained test logs; independent cross-tenant/supplier authorization and PO/invoice approval verification; historical credential rotation; jurisdiction-reviewed tax/currency rules; final prices and Paddle sandbox; Railway/private S3/email and privacy/legal acceptance.
 - No application-code fix or executed passing tests established this checkpoint. No merge, deployment, supplier fund movement or live subscription billing.
+
+## 2026-11-13 04:48 EAT — verification checkpoint
+- Re-read README, positioning, tracker, open PR search and procurement rules/tests. PR #3 remains the only open PR returned, still draft/unmerged according to prior PR state; security branch compares 267 ahead/0 behind main (76 changed files).
+- Commit `ee065e05e6281394767c220ee89a75702a015f39` has `Dira checks` run #247 (`43339303524`) completed FAILURE; checks job `131603314659` returned no steps or logs URL. No evidence of executed application tests; do not infer a code failure, claim green tests, trigger billable Actions, or merge.
+- Fresh branch ancestry: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` 0 ahead/0 behind. Neither has unique commits. Connector has no supported delete-ref operation; no branch deletion.
+- Inspected current rules and tests: `calculateTotals` and `resolveTax` still use Uganda 18% default and two-decimal rounding. Global tax/currency not accepted. No application code changed or executable tests passed this checkpoint.
+- NEEDS ME: isolated runner with disposable PostgreSQL and retained `scripts/verify.sh` logs; independent tenant/supplier/approval controls review and credential rotation; reviewed country tax profiles, owner-approved plan prices, Paddle sandbox, Railway/private storage/email, and privacy/legal signoff. Supplier payments remain record-only and live subscription billing OFF.
+- All five phases OPEN; no merge, deployment, or production activation.
