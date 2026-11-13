@@ -112,7 +112,15 @@ export function paymentTermDays(terms: string | null | undefined, fallback = 30)
 }
 
 export function addDays(date: Date, days: number): Date {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+  const timestamp = date.getTime();
+  if (!Number.isFinite(timestamp) || !Number.isSafeInteger(days)) {
+    throw new RangeError('Invalid schedule date or day offset');
+  }
+  const nextTimestamp = timestamp + days * 24 * 60 * 60 * 1000;
+  if (!Number.isFinite(nextTimestamp) || !Number.isFinite(new Date(nextTimestamp).getTime())) {
+    throw new RangeError('Schedule date exceeds supported range');
+  }
+  return new Date(nextTimestamp);
 }
 
 export type ScheduleFrequencyValue = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY';
