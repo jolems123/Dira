@@ -778,3 +778,9 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Fresh compare: `jolems123-patch-1` 0 ahead/10 behind main; `uganda-currency` identical to main. No delete-ref action exposed; neither deleted.
 - NEEDS ME: recover usable runner/test execution (prefer local/disposable PostgreSQL to avoid billable Actions); rotate any historical secrets; approve reviewed country tax profiles and final prices; supply Paddle sandbox, Railway, private storage, email and legal acceptance. Supplier payments remain record-only; live subscription billing is not authorized.
 - Critical cross-tenant/supplier authorization, PO approval policy, refresh family isolation, and remaining four phases remain OPEN. No merge/deploy performed.
+
+## 2026-11-13 recurring schedule validation checkpoint
+- Added regression tests first (`e6ba9d6`) for invalid recurrence frequency, invalid source date, and invalid comparison date. Implemented fail-closed validation (`f481bf7`) in `nextOccurrence` and `advanceSchedule`. These changes are **committed but not yet proven by executed tests**; do not mark FIXED.
+- Prior security PR head `e051eba` GitHub Actions run #253 (`43367186617`) completed **failure**. Root cause is not established; no passing checks or merge evidence. Avoid launching additional billable Actions runs merely for diagnosis.
+- Fresh compare against `main`: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` 0 ahead/0 behind; `fix/dira-security` 273 ahead/0 behind before these new commits. Branch deletion remains unavailable through exposed connector tools.
+- **NEEDS ME:** executable non-GitHub-hosted security tests with disposable PostgreSQL and independently inspectable logs; historical secret rotation; final plan prices and reviewed tax jurisdictions; Railway/private S3/email/legal acceptance. No supplier payments or live subscription billing authorized. Security PR #3 remains draft; all five phases remain unaccepted.
