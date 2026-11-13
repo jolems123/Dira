@@ -437,3 +437,14 @@ describe('historical invoice total integrity', () => {
     }
   });
 });
+
+
+describe('recurring procurement schedule validation', () => {
+  it('rejects invalid recurrence values rather than silently scheduling quarterly', () => {
+    expect(() => nextOccurrence(new Date('2026-01-01T00:00:00Z'), 'DAILY' as never)).toThrow(RangeError);
+  });
+  it('rejects invalid source dates before generating recurring drafts', () => {
+    expect(() => nextOccurrence(new Date(NaN), 'MONTHLY')).toThrow(RangeError);
+    expect(() => advanceSchedule(new Date('2026-01-01T00:00:00Z'), 'WEEKLY', new Date(NaN))).toThrow(RangeError);
+  });
+});
