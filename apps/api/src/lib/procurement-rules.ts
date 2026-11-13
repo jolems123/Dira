@@ -139,6 +139,9 @@ export function nextOccurrence(from: Date, frequency: ScheduleFrequencyValue): D
   target.setUTCMonth(target.getUTCMonth() + months);
   const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
   target.setUTCDate(Math.min(day, lastDay));
+  if (!Number.isFinite(target.getTime()) || target.getTime() <= from.getTime()) {
+    throw new RangeError('Recurring schedule date exceeds supported range');
+  }
   return target;
 }
 
