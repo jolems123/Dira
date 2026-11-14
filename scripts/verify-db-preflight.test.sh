@@ -31,6 +31,9 @@ check_rejected() {
     exit 1
   fi
 }
+check_rejected 'missing database URL' '' yes test 'ERROR: CI_DATABASE_URL is required (dedicated disposable database only).'
+check_rejected 'non-PostgreSQL URL' 'mysql://localhost/company_test' yes test 'ERROR: CI_DATABASE_URL must use PostgreSQL.'
+check_rejected 'malformed URL' 'postgresql://%' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
 check_rejected 'remote host' 'postgresql://example.com/company_test' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
 check_rejected 'production database name' 'postgresql://localhost/company' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
 check_rejected 'missing disposable acknowledgement' 'postgresql://localhost/company_test' no test 'ERROR: set CI_DATABASE_IS_DISPOSABLE=yes only for an isolated test database.'
