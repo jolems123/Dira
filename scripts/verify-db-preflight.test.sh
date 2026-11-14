@@ -46,6 +46,9 @@ check_rejected 'remote URL host with credentials' 'postgresql://ci:example@192.0
 check_rejected 'URL fragment' 'postgresql://localhost/company_test#ignored' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
 check_rejected 'duplicate database query keys' 'postgresql://localhost/company_test?dbname=company_test&dbname=production' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
 check_rejected 'dbname override' 'postgresql://localhost/company_test?dbname=production' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'mixed-case host override' 'postgresql://localhost/company_test?HOST=example.com' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'connection options override' 'postgresql://localhost/company_test?options=-c%20search_path%3Dproduction' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'unknown query override' 'postgresql://localhost/company_test?unexpected=1' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
 check_rejected 'encoded database path' 'postgresql://localhost/company%2Ftest' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
 : > "$VERIFY_GUARD_CALLS"
 CI_DATABASE_URL='postgresql://localhost/company_test' CI_DATABASE_IS_DISPOSABLE=yes NODE_ENV=test bash "$ROOT/scripts/verify.sh" >/dev/null
