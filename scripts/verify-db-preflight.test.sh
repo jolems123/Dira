@@ -42,6 +42,7 @@ check_rejected 'socket override' 'postgresql://localhost/company_test?host=/tmp'
 check_rejected 'schema override' 'postgresql://localhost/company_test?socket=/tmp' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
 check_rejected 'hostaddr override' 'postgresql://localhost/company_test?hostaddr=203.0.113.10' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
 check_rejected 'service override' 'postgresql://localhost/company_test?service=production' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'dbname override' 'postgresql://localhost/company_test?dbname=production' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
 check_rejected 'encoded database path' 'postgresql://localhost/company%2Ftest' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
 : > "$VERIFY_GUARD_CALLS"
 CI_DATABASE_URL='postgresql://localhost/company_test' CI_DATABASE_IS_DISPOSABLE=yes NODE_ENV=test bash "$ROOT/scripts/verify.sh" >/dev/null
