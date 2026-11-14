@@ -18,7 +18,7 @@ if ! node -e '
     const allowed = new Set(["localhost", "127.0.0.1", "[::1]", "postgres"]);
     const name = decodeURIComponent(u.pathname.slice(1));
     if (u.hash || !allowed.has(u.hostname) || !/^[a-zA-Z0-9_]+_(ci|test)$/.test(name)
-      || ["host", "hostaddr", "socket", "service", "dbname"].some(key => u.searchParams.has(key))) process.exit(1);
+      || [...u.searchParams].some(([key, value]) => key !== "schema" || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value))) process.exit(1);
   } catch { process.exit(1); }
 '; then
   echo 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.' >&2
