@@ -3,6 +3,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
+import { claimPurchaseRequestDecision } from '../lib/approval-claim';
+import { claimRequestForRfq, RfqRequestAlreadyClaimedError } from '../lib/rfq-request-claim';
+import { claimPurchaseRequestSubmission } from '../lib/request-submit-claim';
+import { maySubmitPurchaseRequest } from '../lib/request-ownership';
 import {
   INVOICE_TRANSITIONS,
   PO_TRANSITIONS,
@@ -19,6 +23,9 @@ import {
 } from '../lib/procurement-rules';
 import { estimateBudget, repeatRequest, supplierSuggestions } from '../lib/repeat-procurement';
 import { runThreeWayMatch } from '../lib/three-way-match';
+import { validReceiptQuantities } from '../lib/receipt-quantities';
+import { hasUniqueOrderLineIds } from '../lib/unique-order-lines';
+import { validateQuotedRfqItems } from '../lib/quote-item-validation';
 
 const requestSchema = z.object({
   title: z.string().min(3),
@@ -90,7 +97,7 @@ const dispatchSchema = z.object({
   items: z.array(z.object({
     purchaseOrderItemId: z.string().min(1),
     quantity: z.number().positive(),
-  })).min(1),
+  })).min(1).refine(hasUniqueOrderLineIds, { message: 'Duplicate purchase order item in dispatch' }),
 });
 
 const goodsReceiptSchema = z.object({
@@ -104,7 +111,7 @@ const goodsReceiptSchema = z.object({
     receivedQuantity: z.number().nonnegative(),
     rejectedQuantity: z.number().nonnegative().default(0),
     condition: z.string().max(200).optional(),
-  })).min(1),
+  })).min(1).refine(hasUniqueOrderLineIds, { message: 'Duplicate purchase order item in receipt' }).refine((items) => items.every(validReceiptQuantities), { message: 'Rejected quantity cannot exceed received quantity' }),
 });
 
 const invoiceSchema = z.object({
@@ -176,6 +183,8 @@ function priceQuoteLines(
   rfqItems: Array<{ id: string; quantity: Prisma.Decimal | null }>,
   input: z.infer<typeof submitQuotationSchema>,
 ) {
+  const invalidItem = validateQuotedRfqItems(input.items.map((item) => item.rfqItemId), rfqItems.map((item) => item.id));
+  if (invalidItem) return { error: invalidItem } as const;
   const rfqItemMap = new Map(rfqItems.map((item) => [item.id, item]));
   const lines: Array<{ rfqItemId: string; quantity: number; unitPrice: number; notes?: string }> = [];
   for (const item of input.items) {
@@ -266,7 +275,11 @@ procurementRouter.post('/purchase-requests/:id/submit', requireRole('OWNER', 'AD
     const request = await prisma.purchaseRequest.findFirst({ where: { id: String(req.params.id), organizationId: req.user!.organizationId } });
     if (!request) return res.status(404).json({ message: 'Purchase request not found' });
     if (request.status !== 'DRAFT') return res.status(409).json({ message: `Cannot submit a ${request.status.toLowerCase()} request` });
-    const updated = await prisma.purchaseRequest.update({ where: { id: request.id }, data: { status: 'SUBMITTED', submittedAt: new Date() } });
+    if (!maySubmitPurchaseRequest(request.requestedBy, req.user!.id)) return res.status(403).json({ message: 'Only the requester can submit this draft' });
+    const claimed = await prisma.$transaction(async (tx) =>
+      claimPurchaseRequestSubmission(tx, { id: request.id, organizationId: req.user!.organizationId! }));
+    if (!claimed) return res.status(409).json({ message: 'Purchase request already submitted or changed' });
+    const updated = await prisma.purchaseRequest.findFirst({ where: { id: request.id, organizationId: req.user!.organizationId } });
     return res.json(updated);
   } catch (error) { return next(error); }
 });
@@ -278,20 +291,18 @@ procurementRouter.post('/purchase-requests/:id/approve', requireRole('OWNER', 'A
     const request = await prisma.purchaseRequest.findFirst({ where: { id: String(req.params.id), organizationId: req.user!.organizationId } });
     if (!request) return res.status(404).json({ message: 'Purchase request not found' });
     if (request.status !== 'SUBMITTED') return res.status(409).json({ message: `Cannot approve a ${request.status.toLowerCase()} request` });
-    const [, updated] = await prisma.$transaction([
-      prisma.approvalDecision.create({
-        data: {
-          purchaseRequestId: request.id,
-          approverUserId: req.user!.id,
-          decision: 'APPROVED',
-          comment: parsed.data.comment,
-        },
-      }),
-      prisma.purchaseRequest.update({
-        where: { id: request.id },
-        data: { status: 'APPROVED', approvedAt: new Date() },
-      }),
-    ]);
+    if (request.requestedBy === req.user!.id) return res.status(403).json({ message: 'Requesters cannot approve their own purchase requests' });
+    const updated = await prisma.$transaction(async (tx) => {
+      const claimed = await claimPurchaseRequestDecision(tx, {
+        id: request.id, organizationId: req.user!.organizationId!, status: 'APPROVED', actorId: req.user!.id,
+      });
+      if (!claimed) return null;
+      await tx.approvalDecision.create({
+        data: { purchaseRequestId: request.id, approverUserId: req.user!.id, decision: 'APPROVED', comment: parsed.data.comment },
+      });
+      return tx.purchaseRequest.update({ where: { id: request.id }, data: { approvedAt: new Date() } });
+    });
+    if (!updated) return res.status(409).json({ message: 'Purchase request already decided' });
     return res.json(updated);
   } catch (error) { return next(error); }
 });
@@ -303,20 +314,18 @@ procurementRouter.post('/purchase-requests/:id/reject', requireRole('OWNER', 'AD
     const request = await prisma.purchaseRequest.findFirst({ where: { id: String(req.params.id), organizationId: req.user!.organizationId } });
     if (!request) return res.status(404).json({ message: 'Purchase request not found' });
     if (request.status !== 'SUBMITTED') return res.status(409).json({ message: `Cannot reject a ${request.status.toLowerCase()} request` });
-    const [, updated] = await prisma.$transaction([
-      prisma.approvalDecision.create({
-        data: {
-          purchaseRequestId: request.id,
-          approverUserId: req.user!.id,
-          decision: 'REJECTED',
-          comment: parsed.data.comment,
-        },
-      }),
-      prisma.purchaseRequest.update({
-        where: { id: request.id },
-        data: { status: 'REJECTED' },
-      }),
-    ]);
+    if (request.requestedBy === req.user!.id) return res.status(403).json({ message: 'Requesters cannot reject their own purchase requests' });
+    const updated = await prisma.$transaction(async (tx) => {
+      const claimed = await claimPurchaseRequestDecision(tx, {
+        id: request.id, organizationId: req.user!.organizationId!, status: 'REJECTED', actorId: req.user!.id,
+      });
+      if (!claimed) return null;
+      await tx.approvalDecision.create({
+        data: { purchaseRequestId: request.id, approverUserId: req.user!.id, decision: 'REJECTED', comment: parsed.data.comment },
+      });
+      return tx.purchaseRequest.findUniqueOrThrow({ where: { id: request.id } });
+    });
+    if (!updated) return res.status(409).json({ message: 'Purchase request already decided' });
     return res.json(updated);
   } catch (error) { return next(error); }
 });
@@ -362,7 +371,7 @@ procurementRouter.post('/rfqs', requireRole('OWNER', 'ADMIN', 'PROCUREMENT'), as
       include: { items: true },
     });
     if (!purchaseRequest) return res.status(404).json({ message: 'Purchase request not found' });
-    if (!['APPROVED', 'RFQ_CREATED'].includes(purchaseRequest.status)) {
+    if (purchaseRequest.status !== 'APPROVED') {
       return res.status(409).json({ message: `RFQ can only be created from approved requests. Current status is ${purchaseRequest.status.toLowerCase()}` });
     }
     if (purchaseRequest.items.length === 0) return res.status(409).json({ message: 'Purchase request has no items' });
@@ -406,15 +415,16 @@ procurementRouter.post('/rfqs', requireRole('OWNER', 'ADMIN', 'PROCUREMENT'), as
         },
         include: { items: true, suppliers: true },
       });
-      await tx.purchaseRequest.update({
-        where: { id: purchaseRequest.id },
-        data: { status: 'RFQ_CREATED' },
-      });
+      const claimed = await claimRequestForRfq(tx, purchaseRequest.id, req.user!.organizationId!);
+      if (!claimed) throw new RfqRequestAlreadyClaimedError();
       return created;
     });
 
     return res.status(201).json(rfq);
-  } catch (error) { return next(error); }
+  } catch (error) {
+    if (error instanceof RfqRequestAlreadyClaimedError) return res.status(409).json({ message: error.message });
+    return next(error);
+  }
 });
 
 procurementRouter.post('/rfqs/:id/publish', requireRole('OWNER', 'ADMIN', 'PROCUREMENT'), async (req: AuthenticatedRequest, res, next) => {

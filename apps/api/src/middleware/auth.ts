@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
+import { verifyAccessToken } from '../lib/access-token';
+import { selectActiveMembership } from '../lib/active-membership';
 import { prisma } from '../db';
 import { env } from '../lib/env';
 
@@ -13,16 +14,18 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
   if (!token) return res.status(401).json({ message: 'Authentication required' });
 
   try {
-    const payload = jwt.verify(token, env.jwtAccessSecret) as jwt.JwtPayload;
+    const payload = verifyAccessToken(token, env.jwtAccessSecret);
     const user = await prisma.user.findUnique({
       where: { id: String(payload.sub) },
-      include: { organizationMembers: { take: 1 } },
+      include: { organizationMembers: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } } },
     });
     if (!user || user.status !== 'ACTIVE') return res.status(401).json({ message: 'Invalid session' });
+    const membership = selectActiveMembership(user.organizationMembers);
+    if (!membership) return res.status(403).json({ message: 'Active organisation membership required' });
     req.user = {
       id: user.id,
-      organizationId: user.organizationMembers[0]?.organizationId,
-      role: user.organizationMembers[0]?.role,
+      organizationId: membership.organizationId,
+      role: membership.role,
     };
     return next();
   } catch {

@@ -5,6 +5,7 @@ import { prisma } from '../db';
 import { AuthenticatedRequest, requireAuth } from '../middleware/auth';
 import { validateUpload } from '../lib/uploads';
 import { checksum, storage } from '../lib/storage';
+import { safeAttachmentName } from '../lib/document-response';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
 const metadataSchema = z.object({
@@ -77,7 +78,9 @@ documentsRouter.get('/:id/content', async (req: AuthenticatedRequest, res, next)
     const content = await storage.get(document.storageKey);
     if (checksum(content) !== document.checksum) return res.status(409).json({ message: 'Document integrity check failed' });
     await prisma.auditLog.create({ data: { organizationId: authorized.organizationId, userId: req.user!.id, action: 'DOCUMENT_VIEWED', entityType: 'Document', entityId: document.id } });
-    res.type(document.mimeType).set('Content-Disposition', `inline; filename="${document.originalFilename.replace(/["\r\n]/g, '')}"`);
+    res.set('Cache-Control', 'private, no-store');
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.type(document.mimeType).set('Content-Disposition', `attachment; filename="${safeAttachmentName(document.originalFilename)}"`);
     return res.send(content);
   } catch (caught) { return next(caught); }
 });

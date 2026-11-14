@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db';
 import { runDueSchedules } from '../src/lib/repeat-procurement';
-import { Actor, BASE, api, auth, expectOk, isoDays, registerOrg, setRole, unique } from './helpers';
+import { Actor, BASE, api, auth, expectOk, isoDays, registerOrg, registerApprover, setRole, unique } from './helpers';
 import { runLifecycle } from './lifecycle.test';
 
 /** Request → RFQ → quote (unit prices only, VAT left to the server) → award → acknowledged PO. */
@@ -19,7 +19,8 @@ async function awardedOrder(buyer: Actor, supplier: Actor) {
     'create request',
   );
   await api().post(`${BASE}/purchase-requests/${request.id}/submit`).set(auth(buyer)).send({});
-  expectOk(await api().post(`${BASE}/purchase-requests/${request.id}/approve`).set(auth(buyer)).send({}), 'approve');
+  const approver = await registerApprover(buyer);
+  expectOk(await api().post(`${BASE}/purchase-requests/${request.id}/approve`).set(auth(approver)).send({}), 'approve');
   const rfq = expectOk(
     await api().post(`${BASE}/rfqs`).set(auth(buyer)).send({ purchaseRequestId: request.id, quoteDeadline: isoDays(7), supplierIds: [supplier.organizationId] }),
     'create rfq',

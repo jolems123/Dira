@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { INVOICE_TRANSITIONS, PO_TRANSITIONS, QUOTE_TRANSITIONS, UGANDA_VAT_RATE, advanceSchedule, calculateTotals, canTransition, evaluateThreeWayMatch, invoiceableLines, isQuoteExpired, nextOccurrence, paymentTermDays, resolveTax } from '../src/lib/procurement-rules';
+import { INVOICE_TRANSITIONS, PO_TRANSITIONS, QUOTE_TRANSITIONS, UGANDA_VAT_RATE, round2, advanceSchedule, calculateTotals, canTransition, evaluateThreeWayMatch, invoiceableLines, isQuoteExpired, nextOccurrence, paymentTermDays, resolveTax } from '../src/lib/procurement-rules';
 import { MAX_UPLOAD_BYTES, resolveStoragePath, validateUpload } from '../src/lib/uploads';
 
 const basePo = {
@@ -29,11 +29,53 @@ function match(overrides: Partial<Parameters<typeof evaluateThreeWayMatch>[0]> =
 }
 
 describe('three-way match rules', () => {
+  it('blocks malformed purchase order quantities and prices before matching', () => {
+    for (const [quantity, unitPrice] of [[Number.NaN, 100], [-1, 100], [10, Number.POSITIVE_INFINITY], [10, -1]]) {
+      const result = match({
+        purchaseOrder: { ...basePo, items: [{ id: 'line-1', name: 'Widget', quantity, unitPrice }] },
+      });
+      expect(result.matched).toBe(false);
+      expect(result.exceptions.some((exception) => exception.code === 'INVALID_PO_LINE' && exception.severity === 'BLOCKING')).toBe(true);
+    }
+  });
+
   it('matches a clean PO / receipt / invoice triple', () => {
     const result = match();
     expect(result.matched).toBe(true);
     expect(result.blocking).toBe(0);
     expect(result.lines[0].receivedQuantity).toBe(10);
+  });
+
+  it('blocks invalid receipt quantities instead of treating them as verified goods', () => {
+    const result = match({
+      receiptItems: [{ purchaseOrderItemId: 'line-1', receivedQuantity: 2, rejectedQuantity: 7 }],
+    });
+    expect(result.matched).toBe(false);
+    expect(result.exceptions.map((item) => item.code)).toContain('INVALID_RECEIPT_QUANTITY');
+    expect(result.lines[0].receivedQuantity).toBe(0);
+  });
+
+  it('blocks negative or nonfinite invoice quantities', () => {
+    for (const quantity of [-1, Number.NaN]) {
+      const result = match({
+        invoice: {
+          id: 'inv-1', invoiceNumber: 'INV-1', currency: 'UGX', total: 1000, subtotal: 1000, tax: 0,
+          items: [{ purchaseOrderItemId: 'line-1', description: 'Widget', quantity, unitPrice: 100 }],
+        },
+      });
+      expect(result.exceptions.map((item) => item.code)).toContain('INVALID_INVOICE_QUANTITY');
+      expect(result.matched).toBe(false);
+    }
+  });
+
+  it('blocks unlinked goods receipts even when their quantity is positive', () => {
+    const result = match({
+      receiptItems: [{ purchaseOrderItemId: null, receivedQuantity: 10, rejectedQuantity: 0 }],
+    });
+    expect(result.matched).toBe(false);
+    expect(result.exceptions.some((exception) => exception.code === 'UNMATCHED_RECEIPT_LINE' && exception.severity === 'BLOCKING')).toBe(true);
+    expect(result.exceptions.map((exception) => exception.code)).toContain('MISSING_RECEIPT');
+    expect(result.lines[0].receivedQuantity).toBe(0);
   });
 
   it('detects a missing goods receipt', () => {
@@ -108,6 +150,25 @@ describe('three-way match rules', () => {
     expect(result.exceptions.map((exception) => exception.code)).toContain('PRICE_MISMATCH');
   });
 
+  it('blocks invoice lines referencing a nonexistent PO item instead of silently omitting them', () => {
+    const result = match({
+      invoice: {
+        id: 'inv-1', invoiceNumber: 'INV-1', currency: 'UGX', total: 1000, subtotal: 1000, tax: 0,
+        items: [{ purchaseOrderItemId: 'another-po-line', description: 'Unrelated item', quantity: 10, unitPrice: 100 }],
+      },
+    });
+    expect(result.matched).toBe(false);
+    expect(result.exceptions.some((exception) => exception.code === 'UNMATCHED_INVOICE_LINE' && exception.severity === 'BLOCKING')).toBe(true);
+  });
+
+  it('blocks receipts referencing items outside the purchase order', () => {
+    const result = match({
+      receiptItems: [{ purchaseOrderItemId: 'another-po-line', receivedQuantity: 10, rejectedQuantity: 0 }],
+    });
+    expect(result.matched).toBe(false);
+    expect(result.exceptions.some((exception) => exception.code === 'UNMATCHED_RECEIPT_LINE' && exception.severity === 'BLOCKING')).toBe(true);
+  });
+
   it('flags invoice lines not linked to a PO line', () => {
     const result = match({
       invoice: {
@@ -116,6 +177,40 @@ describe('three-way match rules', () => {
       },
     });
     expect(result.exceptions.map((exception) => exception.code)).toContain('UNMATCHED_INVOICE_LINE');
+  });
+});
+
+describe('invoiceable quantities across partial receipts', () => {
+  it('uses dispatch only for lines without any receipt, not as a PO-wide fallback', () => {
+    const result = invoiceableLines({
+      items: [
+        { id: 'a', name: 'Received item', quantity: 10, unitPrice: 1 },
+        { id: 'b', name: 'Unreceived item', quantity: 10, unitPrice: 1 },
+      ],
+      deliveries: [
+        { kind: 'DISPATCH', items: [
+          { purchaseOrderItemId: 'a', orderedQuantity: 10, receivedQuantity: 0, rejectedQuantity: 0 },
+          { purchaseOrderItemId: 'b', orderedQuantity: 10, receivedQuantity: 0, rejectedQuantity: 0 },
+        ] },
+        { kind: 'RECEIPT', items: [
+          { purchaseOrderItemId: 'a', orderedQuantity: 10, receivedQuantity: 4, rejectedQuantity: 0 },
+        ] },
+      ],
+      invoices: [],
+    });
+    expect(result.lines.find((line) => line.purchaseOrderItemId === 'a')?.quantity).toBe(4);
+    expect(result.lines.find((line) => line.purchaseOrderItemId === 'b')?.quantity).toBe(10);
+  });
+  it('does not substitute dispatch for a line with an explicit zero receipt', () => {
+    const result = invoiceableLines({
+      items: [{ id: 'a', name: 'Rejected item', quantity: 5, unitPrice: 1 }],
+      deliveries: [
+        { kind: 'DISPATCH', items: [{ purchaseOrderItemId: 'a', orderedQuantity: 5, receivedQuantity: 0, rejectedQuantity: 0 }] },
+        { kind: 'RECEIPT', items: [{ purchaseOrderItemId: 'a', orderedQuantity: 5, receivedQuantity: 5, rejectedQuantity: 5 }] },
+      ],
+      invoices: [],
+    });
+    expect(result.lines[0].quantity).toBe(0);
   });
 });
 
@@ -130,8 +225,42 @@ describe('Uganda VAT', () => {
     expect(resolveTax(1_000_000, 50_000)).toBe(50_000);
   });
 
-  it('never charges VAT on a negative taxable amount', () => {
-    expect(resolveTax(-100)).toBe(0);
+  it('rejects negative taxable amounts rather than silently converting them to zero', () => {
+    expect(() => resolveTax(-100)).toThrow(RangeError);
+  });
+});
+
+describe('untrusted document amount validation', () => {
+  it('rejects negative or nonfinite explicit tax rather than reducing an invoice total', () => {
+    for (const tax of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => resolveTax(100, tax)).toThrow();
+      expect(() => calculateTotals({ lines: [{ quantity: 1, unitPrice: 100 }], tax })).toThrow();
+    }
+  });
+  it('rejects negative or nonfinite quantity, price, delivery and discount inputs', () => {
+    const line = (quantity: number, unitPrice: number) => [{ quantity, unitPrice }];
+    for (const lines of [line(-1, 100), line(1, -1), line(Number.NaN, 100), line(1, Number.POSITIVE_INFINITY)]) {
+      expect(() => calculateTotals({ lines, tax: 0 })).toThrow();
+    }
+    for (const value of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => calculateTotals({ lines: line(1, 100), deliveryFee: value, tax: 0 })).toThrow();
+      expect(() => calculateTotals({ lines: line(1, 100), discount: value, tax: 0 })).toThrow();
+    }
+  });
+});
+
+describe('decimal rounding safety', () => {
+  it('rounds half a cent deterministically rather than using binary toFixed', () => {
+    expect(round2(1.005)).toBe(1.01);
+    expect(round2(2.675)).toBe(2.68);
+  });
+  it('avoids floating-point accumulation in invoice totals', () => {
+    const result = calculateTotals({ lines: [{ quantity: 1, unitPrice: 0.1 }, { quantity: 1, unitPrice: 0.2 }], tax: 0 });
+    expect(result.subtotal).toBe(0.3);
+    expect(result.total).toBe(0.3);
+  });
+  it('rounds tax precisely on fractional line totals', () => {
+    expect(resolveTax(0.15)).toBe(0.03);
   });
 });
 
@@ -165,6 +294,32 @@ describe('document arithmetic', () => {
     });
     expect(received.basis).toBe('RECEIVED');
     expect(received.lines.map((line) => line.quantity)).toEqual([3, 4]);
+  });
+});
+
+describe('invoice quantity safety', () => {
+  it('does not allow a malformed receipt with more rejected than received to create negative billable quantities', () => {
+    const result = invoiceableLines({
+      items: [{ id: 'line', name: 'Supplies', quantity: 10, unitPrice: 5 }],
+      deliveries: [{ kind: 'RECEIPT', items: [{ purchaseOrderItemId: 'line', orderedQuantity: 10, receivedQuantity: 2, rejectedQuantity: 7 }] }],
+      invoices: [],
+    });
+    expect(result.lines[0].deliveredQuantity).toBe(0);
+    expect(result.lines[0].quantity).toBe(0);
+  });
+});
+
+describe('nonfinite invoiceable quantity regression', () => {
+  it('never exposes NaN or Infinity as a billable quantity when historical rows are malformed', () => {
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      const result = invoiceableLines({
+        items: [{ id: 'line', name: 'Supplies', quantity: 10, unitPrice: 5 }],
+        deliveries: [{ kind: 'RECEIPT', items: [{ purchaseOrderItemId: 'line', orderedQuantity: 10, receivedQuantity: bad, rejectedQuantity: 0 }] }],
+        invoices: [],
+      });
+      expect(Number.isFinite(result.lines[0].deliveredQuantity)).toBe(true);
+      expect(result.lines[0].quantity).toBe(0);
+    }
   });
 });
 
@@ -214,7 +369,7 @@ describe('upload security', () => {
   const pdf = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]);
 
   it('accepts a well-formed PDF', () => {
-    const result = validateUpload({ filename: 'invoice.pdf', mimeType: 'application/pdf', size: 2048, content: pdf });
+    const result = validateUpload({ filename: 'invoice.pdf', mimeType: 'application/pdf', size: pdf.length, content: pdf });
     expect(result.ok).toBe(true);
     expect(result.storageName).toMatch(/\.pdf$/);
     expect(result.storageName).not.toContain('invoice');
@@ -259,5 +414,64 @@ describe('upload security', () => {
     const resolved = resolveStoragePath(root, 'abc.pdf');
     expect(resolved.startsWith(root)).toBe(true);
     expect(() => resolveStoragePath(root, '../../etc/passwd')).toThrow();
+  });
+});
+
+
+describe('historical invoice total integrity', () => {
+  it('blocks nonfinite or negative document totals instead of returning NaN or Infinity', () => {
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -1]) {
+      for (const field of ['total', 'subtotal', 'tax'] as const) {
+        const invoice = { id: 'inv-1', invoiceNumber: 'INV-1', currency: 'UGX', total: 1000, subtotal: 1000, tax: 0,
+          items: [{ purchaseOrderItemId: 'line-1', description: 'Widget', quantity: 10, unitPrice: 100 }] };
+        const result = match({ invoice: { ...invoice, [field]: bad } });
+        expect(result.matched).toBe(false);
+        expect(result.exceptions.map((exception) => exception.code)).toContain('INVALID_INVOICE_TOTAL');
+        expect(Number.isFinite(result.totals.invoiceTotal)).toBe(true);
+        expect(Number.isFinite(result.totals.variance)).toBe(true);
+      }
+      const result = match({ purchaseOrder: { ...basePo, total: bad } });
+      expect(result.matched).toBe(false);
+      expect(result.exceptions.map((exception) => exception.code)).toContain('INVALID_PO_TOTAL');
+      expect(Number.isFinite(result.totals.poTotal)).toBe(true);
+    }
+  });
+});
+
+
+describe('recurring schedule date overflow', () => {
+  it('rejects monthly and quarterly occurrences outside the supported Date range', () => {
+    const nearLimit = new Date(8_640_000_000_000_000);
+    expect(() => nextOccurrence(nearLimit, 'MONTHLY')).toThrow(RangeError);
+    expect(() => nextOccurrence(nearLimit, 'QUARTERLY')).toThrow(RangeError);
+  });
+
+  it('never returns an invalid future occurrence after date overflow', () => {
+    const nearLimit = new Date(8_640_000_000_000_000);
+    expect(() => advanceSchedule(nearLimit, 'MONTHLY', nearLimit)).toThrow(RangeError);
+  });
+});
+
+describe('recurring procurement schedule validation', () => {
+  it('rejects invalid recurrence values rather than silently scheduling quarterly', () => {
+    expect(() => nextOccurrence(new Date('2026-01-01T00:00:00Z'), 'DAILY' as never)).toThrow(RangeError);
+  });
+  it('rejects invalid source dates before generating recurring drafts', () => {
+    expect(() => nextOccurrence(new Date(NaN), 'MONTHLY')).toThrow(RangeError);
+    expect(() => advanceSchedule(new Date('2026-01-01T00:00:00Z'), 'WEEKLY', new Date(NaN))).toThrow(RangeError);
+  });
+});
+
+
+describe('quote expiration fail-closed validation', () => {
+  it('rejects invalid persisted expiry dates instead of treating quotes as unexpired', () => {
+    expect(() => isQuoteExpired(new Date('invalid'))).toThrow(RangeError);
+    expect(() => isQuoteExpired(new Date('2026-01-01T00:00:00Z'), new Date('invalid'))).toThrow(RangeError);
+  });
+  it('retains null expiry semantics and checks valid expiration boundaries', () => {
+    const now = new Date('2026-01-02T00:00:00Z');
+    expect(isQuoteExpired(null, now)).toBe(false);
+    expect(isQuoteExpired(now, now)).toBe(false);
+    expect(isQuoteExpired(new Date('2026-01-01T00:00:00Z'), now)).toBe(true);
   });
 });

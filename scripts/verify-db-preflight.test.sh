@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Offline regression for verify.sh's preflight. No database, npm install or migration is executed.
+set -Eeuo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+mkdir -p "$TMP/bin"
+cat > "$TMP/bin/npm" <<'EOF'
+#!/usr/bin/env bash
+printf 'npm %s\n' "$*" >> "$VERIFY_GUARD_CALLS"
+EOF
+cat > "$TMP/bin/npx" <<'EOF'
+#!/usr/bin/env bash
+printf 'npx %s\n' "$*" >> "$VERIFY_GUARD_CALLS"
+EOF
+chmod +x "$TMP/bin/npm" "$TMP/bin/npx"
+export PATH="$TMP/bin:$PATH"
+export VERIFY_GUARD_CALLS="$TMP/calls"
+: > "$VERIFY_GUARD_CALLS"
+check_rejected() {
+  local label="$1" url="$2" flag="$3" envmode="$4" expected="$5" output status
+  : > "$VERIFY_GUARD_CALLS"
+  status=0
+  output="$(CI_DATABASE_URL="$url" CI_DATABASE_IS_DISPOSABLE="$flag" NODE_ENV="$envmode" bash "$ROOT/scripts/verify.sh" 2>&1)" || status=$?
+  if [[ "$status" != 2 || "$output" != *"$expected"* ]]; then
+    printf 'FAIL %s: expected exact guard diagnostic and exit 2; got %s\n' "$label" "$status" >&2
+    exit 1
+  fi
+  if [[ -s "$VERIFY_GUARD_CALLS" ]]; then
+    printf 'FAIL %s: invoked npm/npx before rejecting unsafe URL\n' "$label" >&2
+    exit 1
+  fi
+}
+check_rejected 'missing database URL' '' yes test 'ERROR: CI_DATABASE_URL is required (dedicated disposable database only).'
+check_rejected 'non-PostgreSQL URL' 'mysql://localhost/company_test' yes test 'ERROR: CI_DATABASE_URL must use PostgreSQL.'
+check_rejected 'malformed URL' 'postgresql://%' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'remote host' 'postgresql://example.com/company_test' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'production database name' 'postgresql://localhost/company' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'missing disposable acknowledgement' 'postgresql://localhost/company_test' no test 'ERROR: set CI_DATABASE_IS_DISPOSABLE=yes only for an isolated test database.'
+check_rejected 'production environment' 'postgresql://localhost/company_test' yes production 'ERROR: refusing to run CI checks with NODE_ENV=production.'
+check_rejected 'socket override' 'postgresql://localhost/company_test?host=/tmp' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'schema override' 'postgresql://localhost/company_test?socket=/tmp' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'hostaddr override' 'postgresql://localhost/company_test?hostaddr=203.0.113.10' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'service override' 'postgresql://localhost/company_test?service=production' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'remote URL host with credentials' 'postgresql://ci:example@192.0.2.9/company_test' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'URL fragment' 'postgresql://localhost/company_test#ignored' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'duplicate database query keys' 'postgresql://localhost/company_test?dbname=company_test&dbname=production' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'dbname override' 'postgresql://localhost/company_test?dbname=production' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'mixed-case host override' 'postgresql://localhost/company_test?HOST=example.com' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'connection options override' 'postgresql://localhost/company_test?options=-c%20search_path%3Dproduction' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'unknown query override' 'postgresql://localhost/company_test?unexpected=1' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+check_rejected 'encoded database path' 'postgresql://localhost/company%2Ftest' yes test 'ERROR: CI database must be on localhost/postgres and named *_ci or *_test.'
+: > "$VERIFY_GUARD_CALLS"
+CI_DATABASE_URL='postgresql://localhost/company_test' CI_DATABASE_IS_DISPOSABLE=yes NODE_ENV=test bash "$ROOT/scripts/verify.sh" >/dev/null
+if ! grep -q '^npm ci$' "$VERIFY_GUARD_CALLS" || ! grep -q '^npx prisma migrate deploy' "$VERIFY_GUARD_CALLS"; then
+  echo 'FAIL: disposable local database did not reach mocked checks' >&2
+  exit 1
+fi
+echo 'PASS: verification database preflight (offline; mocked npm/npx only)'

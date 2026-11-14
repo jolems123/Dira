@@ -1,6 +1,6 @@
 # Dira
 
-Dira is a local-first B2B procurement platform designed for modern buying teams and supplier workflows. It brings together buyer dashboards, purchase requests, RFQ management, supplier visibility, and approval-driven purchasing in a single monorepo.
+Dira is being developed as a global B2B procurement platform for organisations with 20–500 staff, multiple buyers and approvers, and operations in any country. The current code is an early procurement foundation, **not yet production-launch-ready**. See [product positioning](docs/POSITIONING.md) and the [release gap tracker](docs/reviews/gap-tracker.md). It brings together buyer dashboards, purchase requests, RFQ management, supplier visibility, and approval-driven purchasing in a single monorepo.
 
 ## Product overview
 
@@ -37,15 +37,15 @@ The app is structured as a monorepo:
 
 ## Local development setup
 
-1. Copy `.env.example` to `.env` and update the local values.
+1. Copy `.env.example` to `.env`, replace every placeholder with your own private credentials, and set matching `DIRA_DEV_DB_PASSWORD`, `DATABASE_URL` and `DIRA_DEV_PGADMIN_PASSWORD` values. Never use example credentials in production.
 2. Start PostgreSQL and pgAdmin:
    `docker compose up -d`
 3. Generate the Prisma client:
    `npm exec prisma generate --workspace apps/api`
 4. Run the database migration:
    `npm exec prisma migrate dev --workspace apps/api -- --name init`
-5. Seed development data:
-   `npm run db:seed`
+5. Optional **development-only** seed (never runs in production):
+   `DIRA_ALLOW_DEV_SEED=1 npm run db:seed`
 6. Start the API:
    `npm run dev:api`
 7. Start the frontend:
@@ -57,15 +57,16 @@ The app is structured as a monorepo:
 - API: http://localhost:4000
 - pgAdmin: http://localhost:5050
 
-## Demo login
+## Development accounts
 
-The seeded demo buyer account is:
+There are no production demo accounts. The optional development seed is explicitly opt-in and must never run in production. Do not rely on documented shared credentials; create private local test identities when needed.
 
-- Email: `buyer@dira.local`
-- Password: `Password123!`
+## Payment recording, not payment processing
+
+Dira records payment details and references for audit and reconciliation. It does **not** hold, transfer or disburse supplier funds.
 
 ## Notes
 
 - The local database is configured for a Docker-backed PostgreSQL setup and is intended for rapid development.
-- The repository is intentionally kept focused on a functional local procurement foundation rather than a fully generic enterprise platform.
+- The current implementation is a procurement foundation; global enterprise functionality is planned and must be verified against the release gap tracker before launch.
 - The app currently covers the core buyer-side flow: request submission, approval, RFQ issuance, supplier selection, quote handling, and award-to-PO progression.

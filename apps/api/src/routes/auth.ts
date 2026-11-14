@@ -1,7 +1,10 @@
+import { consumeResetToken } from '../lib/password-reset';
+import { parseRefreshCookie, refreshCookieHeader, clearRefreshCookieHeader } from '../lib/refresh-cookie';
 import bcrypt from 'bcryptjs';
 import { Request, Response, Router } from 'express';
 import crypto from 'node:crypto';
-import jwt from 'jsonwebtoken';
+import { signAccessToken } from '../lib/access-token';
+import { selectActiveMembership } from '../lib/active-membership';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { env } from '../lib/env';
@@ -24,7 +27,7 @@ function publicUser(user: { id: string; firstName: string; lastName: string; ema
 }
 
 function tokens(userId: string) {
-  const accessToken = jwt.sign({ sub: userId }, env.jwtAccessSecret, { expiresIn: '15m' });
+  const accessToken = signAccessToken(userId, env.jwtAccessSecret);
   const refreshToken = crypto.randomBytes(48).toString('hex');
   return { accessToken, refreshToken };
 }
@@ -34,14 +37,14 @@ function hashToken(token: string) {
 }
 
 function setRefreshCookie(res: Response, token: string) {
-  const secure = env.nodeEnv === 'production' ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `dira_refresh_token=${token}; HttpOnly; Path=/api/v1/auth; Max-Age=604800; SameSite=Lax${secure}`);
+  res.setHeader('Set-Cookie', refreshCookieHeader(token, env.nodeEnv === 'production'));
 }
 
 function refreshTokenFromRequest(req: Request) {
   const cookieHeader = typeof req.headers.cookie === 'string' ? req.headers.cookie : '';
-  const cookie = cookieHeader.split(';').map((part) => part.trim()).find((part) => part.startsWith('dira_refresh_token='));
-  return cookie ? decodeURIComponent(cookie.slice('dira_refresh_token='.length)) : (typeof req.body?.refreshToken === 'string' ? req.body.refreshToken : undefined);
+  const cookie = parseRefreshCookie(cookieHeader);
+  if (cookieHeader.split(';').some((part) => part.trim().startsWith('dira_refresh_token='))) return cookie;
+  return typeof req.body?.refreshToken === 'string' ? req.body.refreshToken : undefined;
 }
 
 export const authRouter = Router();
@@ -84,48 +87,81 @@ authRouter.post('/login', async (req, res, next) => {
   try {
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ message: 'Validation failed', errors: parsed.error.flatten() });
-    const user = await prisma.user.findUnique({ where: { email: parsed.data.email }, include: { organizationMembers: { take: 1 } } });
+    const user = await prisma.user.findUnique({ where: { email: parsed.data.email }, include: { organizationMembers: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } } } });
     if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) return res.status(401).json({ message: 'Invalid email or password' });
     if (user.status !== 'ACTIVE') return res.status(403).json({ message: 'Account is not active' });
+    const membership = selectActiveMembership(user.organizationMembers);
+    if (!membership) return res.status(403).json({ message: 'Active organisation membership required' });
     const issued = tokens(user.id);
     await prisma.$transaction([
       prisma.refreshToken.create({ data: { userId: user.id, tokenHash: hashToken(issued.refreshToken), expiresAt: new Date(Date.now() + 7 * 86400000) } }),
       prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }),
     ]);
     setRefreshCookie(res, issued.refreshToken);
-    return res.json({ accessToken: issued.accessToken, user: publicUser(user, user.organizationMembers[0]) });
+    return res.json({ accessToken: issued.accessToken, user: publicUser(user, membership) });
   } catch (error) {
     return next(error);
   }
 });
 
-authRouter.post('/refresh', async (req, res) => {
-  const token = z.string().safeParse(refreshTokenFromRequest(req));
-  if (!token.success) return res.status(400).json({ message: 'Refresh token is required' });
-  const stored = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(token.data) } });
-  if (!stored || stored.revokedAt || stored.expiresAt <= new Date()) return res.status(401).json({ message: 'Refresh token is invalid' });
-  const issued = tokens(stored.userId);
-  await prisma.$transaction([
-    prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } }),
-    prisma.refreshToken.create({ data: { userId: stored.userId, tokenHash: hashToken(issued.refreshToken), expiresAt: new Date(Date.now() + 7 * 86400000) } }),
-  ]);
-  setRefreshCookie(res, issued.refreshToken);
-  return res.json({ accessToken: issued.accessToken });
+authRouter.post('/refresh', async (req, res, next) => {
+  try {
+    const token = z.string().safeParse(refreshTokenFromRequest(req));
+    if (!token.success) return res.status(400).json({ message: 'Refresh token is required' });
+    const stored = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(token.data) } });
+    if (!stored) return res.status(401).json({ message: 'Refresh token is invalid' });
+
+    // A previously rotated credential is evidence of replay. Revoke every active
+    // refresh credential for this account so the rotated child cannot survive.
+    if (stored.revokedAt) {
+      await prisma.refreshToken.updateMany({
+        where: { userId: stored.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      return res.status(401).json({ message: 'Refresh token replay detected; sign in again' });
+    }
+    if (stored.expiresAt <= new Date()) return res.status(401).json({ message: 'Refresh token has expired' });
+
+    const user = await prisma.user.findUnique({ where: { id: stored.userId }, select: { status: true } });
+    if (!user || user.status !== 'ACTIVE') return res.status(401).json({ message: 'Session invalid' });
+
+    const issued = tokens(stored.userId);
+    // Compare-and-swap ensures that concurrent refresh calls never both succeed.
+    const succeeded = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.refreshToken.updateMany({
+        where: { id: stored.id, revokedAt: null, expiresAt: { gt: new Date() } },
+        data: { revokedAt: new Date() },
+      });
+      if (claimed.count !== 1) return false;
+      await tx.refreshToken.create({
+        data: { userId: stored.userId, tokenHash: hashToken(issued.refreshToken), expiresAt: new Date(Date.now() + 7 * 86400000) },
+      });
+      return true;
+    });
+    if (!succeeded) {
+      await prisma.refreshToken.updateMany({ where: { userId: stored.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      return res.status(401).json({ message: 'Refresh token replay detected; sign in again' });
+    }
+    setRefreshCookie(res, issued.refreshToken);
+    return res.json({ accessToken: issued.accessToken });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 authRouter.post('/logout', requireAuth, async (req: AuthenticatedRequest, res) => {
   await prisma.refreshToken.updateMany({ where: { userId: req.user!.id, revokedAt: null }, data: { revokedAt: new Date() } });
-  res.setHeader('Set-Cookie', 'dira_refresh_token=; HttpOnly; Path=/api/v1/auth; Max-Age=0; SameSite=Lax');
+  res.setHeader('Set-Cookie', clearRefreshCookieHeader(env.nodeEnv === 'production'));
   return res.status(204).send();
 });
 
 authRouter.get('/me', requireAuth, async (req: AuthenticatedRequest, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
-    include: { organizationMembers: { take: 1, include: { organization: true } } },
+    include: { organizationMembers: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' }, include: { organization: true } } },
   });
   if (!user) return res.status(404).json({ message: 'User not found' });
-  const membership = user.organizationMembers[0];
+  const membership = selectActiveMembership(user.organizationMembers);
   return res.json({
     user: publicUser(user, membership),
     organization: membership
@@ -162,11 +198,10 @@ authRouter.post('/reset-password', async (req, res, next) => {
     const reset = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
     if (!reset || reset.usedAt || reset.expiresAt <= new Date()) return res.status(400).json({ message: 'Reset token is invalid or expired' });
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
-    await prisma.$transaction([
-      prisma.user.update({ where: { id: reset.userId }, data: { passwordHash } }),
-      prisma.passwordResetToken.update({ where: { id: reset.id }, data: { usedAt: new Date() } }),
-      prisma.refreshToken.updateMany({ where: { userId: reset.userId, revokedAt: null }, data: { revokedAt: new Date() } }),
-    ]);
+    const consumed = await prisma.$transaction((tx) =>
+      consumeResetToken(tx, { id: reset.id, userId: reset.userId, passwordHash, now: new Date() }),
+    );
+    if (!consumed) return res.status(400).json({ message: 'Reset token is invalid or expired' });
     return res.json({ message: 'Password reset successfully' });
   } catch (error) {
     return next(error);

@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db';
-import { Actor, BASE, api, auth, expectOk, isoDays, registerOrg, setRole, unique } from './helpers';
+import { Actor, BASE, api, auth, expectOk, isoDays, registerOrg, registerApprover, setRole, unique } from './helpers';
 
 export interface LifecycleContext {
   buyer: Actor;
@@ -40,7 +40,8 @@ export async function runLifecycle(options: { splitDelivery?: boolean } = {}): P
   );
 
   await api().post(`${BASE}/purchase-requests/${request.id}/submit`).set(auth(buyer)).send({});
-  expectOk(await api().post(`${BASE}/purchase-requests/${request.id}/approve`).set(auth(buyer)).send({ comment: 'Approved' }), 'approve request');
+  const approver = await registerApprover(buyer);
+  expectOk(await api().post(`${BASE}/purchase-requests/${request.id}/approve`).set(auth(approver)).send({ comment: 'Approved' }), 'approve request');
 
   const rfq = expectOk(
     await api().post(`${BASE}/rfqs`).set(auth(buyer)).send({

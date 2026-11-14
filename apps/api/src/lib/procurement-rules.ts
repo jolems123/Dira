@@ -7,8 +7,20 @@ export function num(value: Decimalish): number {
   return Number(value);
 }
 
+/** Decimal ROUND_HALF_UP (4), avoiding binary floating-point rounding in money. */
+function moneyDecimal(value: number | Prisma.Decimal): Prisma.Decimal {
+  return new Prisma.Decimal(value).toDecimalPlaces(2, 4);
+}
+
 export function round2(value: number): number {
-  return Number(value.toFixed(2));
+  if (!Number.isFinite(value)) {
+    throw new RangeError('Invalid monetary amount: expected a finite number');
+  }
+  const rounded = moneyDecimal(value);
+  if (!rounded.isFinite() || rounded.abs().gt(Number.MAX_SAFE_INTEGER)) {
+    throw new RangeError('Invalid monetary amount: exceeds safe numeric range');
+  }
+  return rounded.toNumber();
 }
 
 /** Uganda standard-rate VAT (VAT Act, Cap. 349). */
@@ -19,8 +31,21 @@ export const UGANDA_VAT_RATE = 0.18;
  * not VAT-registered, or selling exempt/zero-rated goods, can submit 0.
  */
 export function resolveTax(taxableAmount: number, explicitTax?: number): number {
-  if (explicitTax !== undefined) return round2(explicitTax);
-  return round2(Math.max(taxableAmount, 0) * UGANDA_VAT_RATE);
+  assertNonnegativeFiniteAmount(taxableAmount, 'taxable amount');
+  const result = explicitTax !== undefined
+    ? (assertNonnegativeFiniteAmount(explicitTax, 'explicit tax'), moneyDecimal(explicitTax))
+    : moneyDecimal(new Prisma.Decimal(taxableAmount).mul(UGANDA_VAT_RATE));
+  if (!result.isFinite() || result.abs().gt(Number.MAX_SAFE_INTEGER)) {
+    throw new RangeError('Invalid tax: amount exceeds safe numeric range');
+  }
+  return result.toNumber();
+}
+
+/** Reject malformed or negative money before it reaches a persisted document. */
+function assertNonnegativeFiniteAmount(value: number, label: string, allowNegative = false): void {
+  if (!Number.isFinite(value) || (!allowNegative && value < 0)) {
+    throw new RangeError(`Invalid ${label}: expected a finite ${allowNegative ? 'number' : 'nonnegative number'}`);
+  }
 }
 
 export interface PricedLine {
@@ -33,31 +58,79 @@ export interface PricedLine {
  * VAT is charged on subtotal + delivery - discount unless an explicit tax amount is given.
  */
 export function calculateTotals(input: { lines: PricedLine[]; deliveryFee?: number; discount?: number; tax?: number }) {
-  const lineTotals = input.lines.map((line) => round2(line.quantity * (line.unitPrice ?? 0)));
-  const subtotal = round2(lineTotals.reduce((sum, value) => sum + value, 0));
-  const deliveryFee = round2(input.deliveryFee ?? 0);
-  const discount = round2(input.discount ?? 0);
-  const tax = resolveTax(subtotal + deliveryFee - discount, input.tax);
-  const total = round2(subtotal + tax + deliveryFee - discount);
-  return { lineTotals, subtotal, deliveryFee, discount, tax, total };
+  for (const line of input.lines) {
+    assertNonnegativeFiniteAmount(line.quantity, 'line quantity');
+    if (line.unitPrice !== null && line.unitPrice !== undefined) {
+      assertNonnegativeFiniteAmount(line.unitPrice, 'unit price');
+    }
+  }
+  assertNonnegativeFiniteAmount(input.deliveryFee ?? 0, 'delivery fee');
+  assertNonnegativeFiniteAmount(input.discount ?? 0, 'discount');
+  if (input.tax !== undefined) assertNonnegativeFiniteAmount(input.tax, 'explicit tax');
+  // Round individual extended prices first, then add as exact decimal values.
+  const lineAmounts = input.lines.map((line) =>
+    moneyDecimal(new Prisma.Decimal(line.quantity).mul(line.unitPrice ?? 0)));
+  const lineTotals = lineAmounts.map((amount) => amount.toNumber());
+  const subtotalAmount = moneyDecimal(lineAmounts.reduce((sum, amount) => sum.plus(amount), new Prisma.Decimal(0)));
+  const deliveryAmount = moneyDecimal(input.deliveryFee ?? 0);
+  const discountAmount = moneyDecimal(input.discount ?? 0);
+  // A discount cannot exceed the payable pre-tax amount; otherwise a malformed
+  // quote/invoice could persist a negative balance despite nonnegative inputs.
+  if (discountAmount.gt(subtotalAmount.plus(deliveryAmount))) {
+    throw new RangeError('Invalid discount: exceeds subtotal plus delivery');
+  }
+  const taxableAmount = subtotalAmount.plus(deliveryAmount).minus(discountAmount);
+  const taxAmount = input.tax === undefined
+    ? moneyDecimal(Prisma.Decimal.max(taxableAmount, 0).mul(UGANDA_VAT_RATE))
+    : moneyDecimal(input.tax);
+  const totalAmount = moneyDecimal(taxableAmount.plus(taxAmount));
+  // API and persistence consumers use JS numbers; reject values that cannot be
+  // represented safely rather than returning Infinity or an imprecise integer.
+  const monetaryOutputs = [...lineAmounts, subtotalAmount, deliveryAmount, discountAmount, taxAmount, totalAmount];
+  if (monetaryOutputs.some((amount) => !amount.isFinite() || amount.abs().gt(Number.MAX_SAFE_INTEGER))) {
+    throw new RangeError('Invalid procurement total: amount exceeds safe numeric range');
+  }
+  return {
+    lineTotals,
+    subtotal: subtotalAmount.toNumber(),
+    deliveryFee: deliveryAmount.toNumber(),
+    discount: discountAmount.toNumber(),
+    tax: taxAmount.toNumber(),
+    total: totalAmount.toNumber(),
+  };
 }
 
 /** Days until payment is due for common term spellings: "NET30", "Net 45", "60 days", "COD". */
 export function paymentTermDays(terms: string | null | undefined, fallback = 30): number {
   if (!terms) return fallback;
   if (/\b(cod|cash on delivery|on delivery|immediate|due on receipt)\b/i.test(terms)) return 0;
-  const match = terms.match(/(\d{1,3})/);
-  return match ? Number(match[1]) : fallback;
+  // Do not mistake invoice references, years or arbitrary numbers for payment terms.
+  // Recognize explicit NET n / n days only, within a bounded due-date window.
+  const match = terms.match(/\b(?:net\s*([0-9]{1,3})|([0-9]{1,3})\s*days?)\b/i);
+  const days = match ? Number(match[1] ?? match[2]) : NaN;
+  return Number.isInteger(days) && days >= 1 && days <= 365 ? days : fallback;
 }
 
 export function addDays(date: Date, days: number): Date {
-  return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+  const timestamp = date.getTime();
+  if (!Number.isFinite(timestamp) || !Number.isSafeInteger(days)) {
+    throw new RangeError('Invalid schedule date or day offset');
+  }
+  const nextTimestamp = timestamp + days * 24 * 60 * 60 * 1000;
+  if (!Number.isFinite(nextTimestamp) || !Number.isFinite(new Date(nextTimestamp).getTime())) {
+    throw new RangeError('Schedule date exceeds supported range');
+  }
+  return new Date(nextTimestamp);
 }
 
 export type ScheduleFrequencyValue = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY';
 
 /** Next occurrence after `from`. Month steps clamp to the last day, so 31 Jan -> 28/29 Feb. */
 export function nextOccurrence(from: Date, frequency: ScheduleFrequencyValue): Date {
+  if (!Number.isFinite(from.getTime())) throw new RangeError('Invalid recurring schedule date');
+  if (frequency !== 'WEEKLY' && frequency !== 'MONTHLY' && frequency !== 'QUARTERLY') {
+    throw new RangeError('Invalid recurring schedule frequency');
+  }
   if (frequency === 'WEEKLY') return addDays(from, 7);
   const months = frequency === 'MONTHLY' ? 1 : 3;
   const target = new Date(from.getTime());
@@ -66,12 +139,23 @@ export function nextOccurrence(from: Date, frequency: ScheduleFrequencyValue): D
   target.setUTCMonth(target.getUTCMonth() + months);
   const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
   target.setUTCDate(Math.min(day, lastDay));
+  if (!Number.isFinite(target.getTime()) || target.getTime() <= from.getTime()) {
+    throw new RangeError('Recurring schedule date exceeds supported range');
+  }
   return target;
 }
 
 /** Advances a schedule past `now`, skipping missed periods so a long outage creates one draft, not a backlog. */
 export function advanceSchedule(nextRunAt: Date, frequency: ScheduleFrequencyValue, now: Date): Date {
+  if (!Number.isFinite(now.getTime())) throw new RangeError('Invalid schedule comparison date');
   let candidate = nextOccurrence(nextRunAt, frequency);
+  if (frequency === 'WEEKLY' && candidate <= now) {
+    // Jump across missed weeks in constant time; long outages must not create
+    // an unbounded synchronous loop on a request or background worker.
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+    const skippedWeeks = Math.floor((now.getTime() - candidate.getTime()) / weekMs) + 1;
+    candidate = addDays(candidate, skippedWeeks * 7);
+  }
   while (candidate <= now) candidate = nextOccurrence(candidate, frequency);
   return candidate;
 }
@@ -87,15 +171,49 @@ export function invoiceableLines(input: {
   deliveries: Array<{ kind: string; items: Array<{ purchaseOrderItemId: string | null; orderedQuantity: Decimalish; receivedQuantity: Decimalish; rejectedQuantity: Decimalish }> }>;
   invoices: Array<{ status: string; items: Array<{ purchaseOrderItemId: string | null; quantity: Decimalish }> }>;
 }) {
+  // Historical rows can predate request validation; never turn nonfinite values into billable quantities.
+  const safeQuantity = (value: Decimalish): number => {
+    const parsed = num(value);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  };
+  // Historical records may individually contain finite numbers whose cumulative sum
+  // overflows Number. Cap preview aggregates conservatively instead of emitting Infinity.
+  const addPreviewQuantity = (current: number, addition: number): number =>
+    Math.min(Number.MAX_SAFE_INTEGER, current + addition);
   const received = new Map<string, number>();
+  const invalidReceiptLines = new Set<string>();
   const dispatched = new Map<string, number>();
+  const invalidDispatchLines = new Set<string>();
   for (const delivery of input.deliveries) {
     for (const item of delivery.items) {
       if (!item.purchaseOrderItemId) continue;
       if (delivery.kind === 'RECEIPT') {
-        received.set(item.purchaseOrderItemId, (received.get(item.purchaseOrderItemId) ?? 0) + num(item.receivedQuantity) - num(item.rejectedQuantity));
-      } else {
-        dispatched.set(item.purchaseOrderItemId, (dispatched.get(item.purchaseOrderItemId) ?? 0) + num(item.orderedQuantity));
+        // Invalid legacy rejection evidence cannot be treated as zero rejected:
+        // doing so would inflate the supplier's billable quantity.
+        const rawReceived = num(item.receivedQuantity);
+        const rawRejected = num(item.rejectedQuantity);
+        const validReceipt = item.receivedQuantity !== null && item.receivedQuantity !== undefined
+          && item.rejectedQuantity !== null && item.rejectedQuantity !== undefined
+          && Number.isFinite(rawReceived) && Number.isFinite(rawRejected)
+          && rawReceived >= 0 && rawRejected >= 0 && rawRejected <= rawReceived;
+        // A malformed receipt is evidence of an attempted receipt, not absence of one.
+        // Keep a zero-net marker so dispatch cannot authorize invoicing this line.
+        if (!validReceipt) invalidReceiptLines.add(item.purchaseOrderItemId);
+        const netReceived = validReceipt ? rawReceived - rawRejected : 0;
+        received.set(item.purchaseOrderItemId, invalidReceiptLines.has(item.purchaseOrderItemId)
+          ? 0
+          : addPreviewQuantity(received.get(item.purchaseOrderItemId) ?? 0, netReceived));
+      } else if (delivery.kind === 'DISPATCH') {
+        // Unknown historical kinds are not evidence that goods were dispatched.
+        // An invalid historical dispatch is not proof of zero dispatch. Quarantine
+        // the PO line even if another dispatch entry is valid, pending audit.
+        const rawDispatched = num(item.orderedQuantity);
+        if (item.orderedQuantity === null || item.orderedQuantity === undefined
+          || !Number.isFinite(rawDispatched) || rawDispatched < 0) {
+          invalidDispatchLines.add(item.purchaseOrderItemId);
+        } else {
+          dispatched.set(item.purchaseOrderItemId, addPreviewQuantity(dispatched.get(item.purchaseOrderItemId) ?? 0, rawDispatched));
+        }
       }
     }
   }
@@ -104,22 +222,47 @@ export function invoiceableLines(input: {
     if (NON_BILLING_INVOICE_STATUSES.includes(invoice.status)) continue;
     for (const item of invoice.items) {
       if (!item.purchaseOrderItemId) continue;
-      invoiced.set(item.purchaseOrderItemId, (invoiced.get(item.purchaseOrderItemId) ?? 0) + num(item.quantity));
+      // Malformed active invoice evidence is uncertain committed quantity, not zero.
+      // Reserve the entire preview capacity rather than allowing duplicate billing.
+      const rawInvoiced = num(item.quantity);
+      if (item.quantity === null || item.quantity === undefined || !Number.isFinite(rawInvoiced) || rawInvoiced < 0) {
+        invoiced.set(item.purchaseOrderItemId, Number.MAX_SAFE_INTEGER);
+        continue;
+      }
+      invoiced.set(item.purchaseOrderItemId, addPreviewQuantity(invoiced.get(item.purchaseOrderItemId) ?? 0, rawInvoiced));
     }
+  }
+  // A legacy PO with duplicate line IDs cannot unambiguously allocate a receipt
+  // or prior invoice to a single row. Quarantine every duplicate from previews.
+  const seenPoIds = new Set<string>();
+  const duplicatePoIds = new Set<string>();
+  for (const item of input.items) {
+    if (seenPoIds.has(item.id)) duplicatePoIds.add(item.id);
+    seenPoIds.add(item.id);
   }
   const anyReceipt = received.size > 0;
   const basis: 'RECEIVED' | 'DISPATCHED' = anyReceipt ? 'RECEIVED' : 'DISPATCHED';
   const lines = input.items.map((item) => {
-    const deliveredQuantity = round2((anyReceipt ? received : dispatched).get(item.id) ?? 0);
+    // Receipt evidence takes precedence per PO line. Other lines can still use dispatch
+    // evidence until their first receipt, including a fully rejected (zero-net) receipt.
+    const deliveredQuantity = duplicatePoIds.has(item.id) || invalidReceiptLines.has(item.id)
+      || (!received.has(item.id) && invalidDispatchLines.has(item.id))
+      ? 0
+      : round2((received.has(item.id) ? received : dispatched).get(item.id) ?? 0);
     const invoicedQuantity = round2(invoiced.get(item.id) ?? 0);
     return {
       purchaseOrderItemId: item.id,
       description: item.name,
-      orderedQuantity: num(item.quantity),
+      orderedQuantity: safeQuantity(item.quantity),
       deliveredQuantity,
       invoicedQuantity,
-      quantity: round2(Math.max(0, Math.min(deliveredQuantity, num(item.quantity)) - invoicedQuantity)),
-      unitPrice: num(item.unitPrice),
+      // Missing/invalid historical PO price is not authorization to create a new invoice.
+      // A genuine zero-price line is valid; only absent, negative or nonfinite evidence fails closed.
+      quantity: duplicatePoIds.has(item.id) || item.unitPrice === null || item.unitPrice === undefined
+        || !Number.isFinite(num(item.unitPrice)) || num(item.unitPrice) < 0
+        ? 0
+        : round2(Math.max(0, Math.min(deliveredQuantity, safeQuantity(item.quantity)) - invoicedQuantity)),
+      unitPrice: safeQuantity(item.unitPrice),
     };
   });
   return { basis, lines };
@@ -168,6 +311,8 @@ export const INVOICE_TRANSITIONS: Record<string, string[]> = {
 };
 
 export function canTransition(map: Record<string, string[]>, from: string, to: string): boolean {
+  // A no-op must not silently accept an unknown or forged persisted status.
+  if (!Object.prototype.hasOwnProperty.call(map, from)) return false;
   if (from === to) return true;
   return (map[from] ?? []).includes(to);
 }
@@ -181,6 +326,10 @@ export function assertTransition(map: Record<string, string[]>, from: string, to
 }
 
 export function isQuoteExpired(validUntil: Date | null | undefined, now = new Date()): boolean {
+  // An invalid persisted expiry must never make an expired quote eligible for award.
+  if (!Number.isFinite(now.getTime()) || (validUntil && !Number.isFinite(validUntil.getTime()))) {
+    throw new RangeError('Invalid quote expiry or comparison date');
+  }
   if (!validUntil) return false;
   return validUntil.getTime() < now.getTime();
 }
@@ -246,29 +395,107 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   const exceptions: MatchException[] = [];
   const requireReceipt = input.requireReceipt ?? true;
 
+  const poItemIds = new Set<string>();
+  for (const item of input.purchaseOrder.items) {
+    if (poItemIds.has(item.id)) {
+      exceptions.push({
+        code: 'DUPLICATE_PO_LINE',
+        severity: 'BLOCKING',
+        message: 'Purchase order contains duplicate item identifiers',
+        details: { purchaseOrderItemId: item.id },
+      });
+    }
+    poItemIds.add(item.id);
+  }
   const receivedByLine = new Map<string, number>();
-  let unlinkedReceived = 0;
   for (const item of input.receiptItems) {
-    const net = num(item.receivedQuantity) - num(item.rejectedQuantity);
-    if (!item.purchaseOrderItemId) {
-      unlinkedReceived += net;
+    const received = num(item.receivedQuantity);
+    const rejected = num(item.rejectedQuantity);
+    const valid = item.receivedQuantity !== null && item.receivedQuantity !== undefined
+      && item.rejectedQuantity !== null && item.rejectedQuantity !== undefined
+      && Number.isFinite(received) && Number.isFinite(rejected)
+      && received >= 0 && rejected >= 0 && rejected <= received;
+    if (!valid) {
+      exceptions.push({
+        code: 'INVALID_RECEIPT_QUANTITY',
+        severity: 'BLOCKING',
+        message: 'Goods receipt contains invalid received or rejected quantities',
+        details: { purchaseOrderItemId: item.purchaseOrderItemId },
+      });
       continue;
     }
-    receivedByLine.set(item.purchaseOrderItemId, (receivedByLine.get(item.purchaseOrderItemId) ?? 0) + net);
+    if (item.purchaseOrderItemId && !poItemIds.has(item.purchaseOrderItemId)) {
+      exceptions.push({
+        code: 'UNMATCHED_RECEIPT_LINE',
+        severity: 'BLOCKING',
+        message: 'Goods receipt references an item outside this purchase order',
+        details: { purchaseOrderItemId: item.purchaseOrderItemId },
+      });
+      continue;
+    }
+    const net = received - rejected;
+    if (!item.purchaseOrderItemId) {
+      exceptions.push({
+        code: 'UNMATCHED_RECEIPT_LINE',
+        severity: 'BLOCKING',
+        message: 'Goods receipt is not linked to a purchase order item',
+      });
+      continue;
+    }
+    const aggregate = (receivedByLine.get(item.purchaseOrderItemId) ?? 0) + net;
+    if (!Number.isFinite(aggregate)) {
+      exceptions.push({ code: 'INVALID_RECEIPT_AGGREGATE', severity: 'BLOCKING', message: 'Cumulative goods receipt quantity overflowed', details: { purchaseOrderItemId: item.purchaseOrderItemId } });
+      receivedByLine.set(item.purchaseOrderItemId, 0);
+      continue;
+    }
+    receivedByLine.set(item.purchaseOrderItemId, aggregate);
   }
 
   const invoicedByLine = new Map<string, { quantity: number; unitPrice: number }>();
   const unlinkedInvoiceLines: typeof input.invoice.items = [];
   for (const item of input.invoice.items) {
+    const quantity = num(item.quantity);
+    const price = num(item.unitPrice);
+    if (item.quantity === null || item.quantity === undefined || item.unitPrice === null || item.unitPrice === undefined
+      || !Number.isFinite(quantity) || quantity < 0 || !Number.isFinite(price) || price < 0) {
+      exceptions.push({
+        code: 'INVALID_INVOICE_QUANTITY',
+        severity: 'BLOCKING',
+        message: 'Invoice contains invalid quantities or unit prices',
+        details: { purchaseOrderItemId: item.purchaseOrderItemId },
+      });
+      continue;
+    }
+    if (item.purchaseOrderItemId && !poItemIds.has(item.purchaseOrderItemId)) {
+      exceptions.push({
+        code: 'UNMATCHED_INVOICE_LINE',
+        severity: 'BLOCKING',
+        message: 'Invoice references an item outside this purchase order',
+        details: { purchaseOrderItemId: item.purchaseOrderItemId },
+      });
+      continue;
+    }
     if (!item.purchaseOrderItemId) {
       unlinkedInvoiceLines.push(item);
       continue;
     }
     const existing = invoicedByLine.get(item.purchaseOrderItemId);
-    invoicedByLine.set(item.purchaseOrderItemId, {
-      quantity: (existing?.quantity ?? 0) + num(item.quantity),
-      unitPrice: num(item.unitPrice),
-    });
+    if (existing && Math.abs(existing.unitPrice - price) > MONEY_EPSILON) {
+      exceptions.push({
+        code: 'CONFLICTING_INVOICE_PRICES',
+        severity: 'BLOCKING',
+        message: 'Invoice lines for the same purchase order item have conflicting unit prices',
+        details: { purchaseOrderItemId: item.purchaseOrderItemId },
+      });
+      continue;
+    }
+    const aggregate = (existing?.quantity ?? 0) + quantity;
+    if (!Number.isFinite(aggregate)) {
+      exceptions.push({ code: 'INVALID_INVOICE_AGGREGATE', severity: 'BLOCKING', message: 'Cumulative invoice quantity overflowed', details: { purchaseOrderItemId: item.purchaseOrderItemId } });
+      invoicedByLine.set(item.purchaseOrderItemId, { quantity: 0, unitPrice: price });
+      continue;
+    }
+    invoicedByLine.set(item.purchaseOrderItemId, { quantity: aggregate, unitPrice: price });
   }
 
   if (input.purchaseOrder.currency !== input.invoice.currency) {
@@ -280,7 +507,11 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     });
   }
 
-  const totalReceived = [...receivedByLine.values()].reduce((sum, value) => sum + value, 0) + unlinkedReceived;
+  const rawTotalReceived = [...receivedByLine.values()].reduce((sum, value) => sum + value, 0);
+  if (!Number.isFinite(rawTotalReceived)) {
+    exceptions.push({ code: 'INVALID_RECEIPT_TOTAL', severity: 'BLOCKING', message: 'Goods receipt quantities overflowed across purchase order lines' });
+  }
+  const totalReceived = Number.isFinite(rawTotalReceived) ? rawTotalReceived : 0;
   if (requireReceipt && totalReceived <= QTY_EPSILON) {
     exceptions.push({
       code: 'MISSING_RECEIPT',
@@ -291,6 +522,17 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
 
   for (const sibling of input.siblingInvoices) {
     if (sibling.id === input.invoice.id) continue;
+    // Legacy invoice rows may predate monetary input validation. An invalid
+    // sibling total must not evade duplicate-invoice review via NaN comparisons.
+    const siblingTotal = num(sibling.total);
+    if (sibling.total === null || sibling.total === undefined || !Number.isFinite(siblingTotal) || siblingTotal < 0) {
+      exceptions.push({
+        code: 'INVALID_SIBLING_INVOICE_TOTAL',
+        severity: 'BLOCKING',
+        message: 'Another supplier invoice has an invalid total',
+        details: { siblingInvoiceId: sibling.id },
+      });
+    }
     if (sibling.invoiceNumber === input.invoice.invoiceNumber) {
       exceptions.push({
         code: 'DUPLICATE_INVOICE',
@@ -314,9 +556,28 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   }
 
   const lines = input.purchaseOrder.items.map((poItem) => {
-    const ordered = num(poItem.quantity);
-    const orderedUnitPrice = num(poItem.unitPrice);
+    const rawOrdered = num(poItem.quantity);
+    const rawUnitPrice = num(poItem.unitPrice);
+    if (poItem.quantity === null || poItem.quantity === undefined || poItem.unitPrice === null || poItem.unitPrice === undefined || !Number.isFinite(rawOrdered) || rawOrdered < 0 || !Number.isFinite(rawUnitPrice) || rawUnitPrice < 0) {
+      exceptions.push({
+        code: 'INVALID_PO_LINE',
+        severity: 'BLOCKING',
+        message: 'Purchase order contains an invalid quantity or unit price',
+        details: { purchaseOrderItemId: poItem.id },
+      });
+    }
+    // Historical corrupt PO rows must not yield NaN/Infinity in match output.
+    const ordered = Number.isFinite(rawOrdered) && rawOrdered >= 0 ? rawOrdered : 0;
+    const orderedUnitPrice = Number.isFinite(rawUnitPrice) && rawUnitPrice >= 0 ? rawUnitPrice : 0;
     const received = receivedByLine.get(poItem.id) ?? 0;
+    if (Number.isFinite(ordered) && ordered >= 0 && received > ordered + QTY_EPSILON) {
+      exceptions.push({
+        code: 'OVER_RECEIPT',
+        severity: 'BLOCKING',
+        message: `Cumulative received quantity (${received}) exceeds ordered quantity (${ordered}) for ${poItem.name}`,
+        details: { purchaseOrderItemId: poItem.id, ordered, received },
+      });
+    }
     const invoiced = invoicedByLine.get(poItem.id);
     const invoicedQuantity = invoiced?.quantity ?? 0;
     const invoicedUnitPrice = invoiced?.unitPrice ?? 0;
@@ -368,8 +629,20 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     });
   }
 
-  const poTotal = num(input.purchaseOrder.total);
-  const invoiceTotal = num(input.invoice.total);
+  // Legacy persisted documents may predate validation. Fail closed and keep
+  // all derived totals finite rather than propagating NaN/Infinity to approvals.
+  const rawPoTotal = num(input.purchaseOrder.total);
+  const rawInvoiceTotal = num(input.invoice.total);
+  const rawSubtotal = num(input.invoice.subtotal);
+  const rawTax = num(input.invoice.tax);
+  if (input.purchaseOrder.total === null || input.purchaseOrder.total === undefined || !Number.isFinite(rawPoTotal) || rawPoTotal < 0) {
+    exceptions.push({ code: 'INVALID_PO_TOTAL', severity: 'BLOCKING', message: 'Purchase order total is invalid' });
+  }
+  if ([input.invoice.total, input.invoice.subtotal, input.invoice.tax].some((value) => value === null || value === undefined) || [rawInvoiceTotal, rawSubtotal, rawTax].some((value) => !Number.isFinite(value) || value < 0)) {
+    exceptions.push({ code: 'INVALID_INVOICE_TOTAL', severity: 'BLOCKING', message: 'Invoice totals or tax are invalid' });
+  }
+  const poTotal = Number.isFinite(rawPoTotal) && rawPoTotal >= 0 ? rawPoTotal : 0;
+  const invoiceTotal = Number.isFinite(rawInvoiceTotal) && rawInvoiceTotal >= 0 ? rawInvoiceTotal : 0;
   if (invoiceTotal > poTotal + MONEY_EPSILON) {
     exceptions.push({
       code: 'OVER_INVOICING',
@@ -379,10 +652,30 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     });
   }
 
-  const computedSubtotal = round2(
-    input.invoice.items.reduce((sum, item) => sum + num(item.quantity) * num(item.unitPrice), 0),
-  );
-  const declaredSubtotal = num(input.invoice.subtotal);
+  // Persisted legacy rows can contain nonfinite values or finite operands whose
+  // product/sum overflows. Never let NaN bypass the subtotal mismatch comparison.
+  let subtotalInvalid = false;
+  let subtotalAccumulator = new Prisma.Decimal(0);
+  for (const item of input.invoice.items) {
+    const quantity = num(item.quantity);
+    const price = num(item.unitPrice);
+    if (!Number.isFinite(quantity) || !Number.isFinite(price) || quantity < 0 || price < 0) {
+      subtotalInvalid = true;
+      continue;
+    }
+    subtotalAccumulator = subtotalAccumulator.plus(new Prisma.Decimal(quantity).mul(price));
+  }
+  const computedSubtotalRaw = subtotalAccumulator.toNumber();
+  if (!Number.isFinite(computedSubtotalRaw)) subtotalInvalid = true;
+  if (subtotalInvalid) {
+    exceptions.push({
+      code: 'INVALID_INVOICE_SUBTOTAL',
+      severity: 'BLOCKING',
+      message: 'Invoice line arithmetic contains invalid or overflowing values',
+    });
+  }
+  const computedSubtotal = subtotalInvalid ? 0 : round2(computedSubtotalRaw);
+  const declaredSubtotal = Number.isFinite(rawSubtotal) && rawSubtotal >= 0 ? rawSubtotal : 0;
   if (Math.abs(computedSubtotal - declaredSubtotal) > MONEY_EPSILON) {
     exceptions.push({
       code: 'PRICE_MISMATCH',
@@ -392,9 +685,11 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     });
   }
 
-  const receivedValue = round2(
-    lines.reduce((sum, line) => sum + line.receivedQuantity * line.orderedUnitPrice, 0),
-  );
+  const rawReceivedValue = lines.reduce((sum, line) => sum.plus(new Prisma.Decimal(line.receivedQuantity).mul(line.orderedUnitPrice)), new Prisma.Decimal(0));
+  const receivedValue = rawReceivedValue.toNumber();
+  if (!Number.isFinite(receivedValue)) {
+    exceptions.push({ code: 'INVALID_RECEIVED_VALUE', severity: 'BLOCKING', message: 'Received goods value overflowed' });
+  }
 
   const blocking = exceptions.filter((exception) => exception.severity === 'BLOCKING').length;
   const warnings = exceptions.length - blocking;
@@ -408,7 +703,7 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     totals: {
       poTotal: round2(poTotal),
       invoiceTotal: round2(invoiceTotal),
-      receivedValue,
+      receivedValue: Number.isFinite(receivedValue) ? round2(receivedValue) : 0,
       variance: round2(invoiceTotal - poTotal),
     },
   };

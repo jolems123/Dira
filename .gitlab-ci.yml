@@ -1,0 +1,34 @@
+# Independent CI alternative when GitHub Actions cannot provision runners.
+# Runs automatically once Dira is mirrored/imported into a GitLab project with
+# a GitLab runner that supports service containers.
+image: node:22
+
+services:
+  - name: postgres:16
+    alias: postgres
+
+variables:
+  POSTGRES_USER: dira_ci
+  POSTGRES_PASSWORD: dira_ci_disposable_only
+  POSTGRES_DB: dira_ci
+  CI_DATABASE_URL: "postgresql://dira_ci:dira_ci_disposable_only@postgres:5432/dira_ci?schema=public"
+  CI_DATABASE_IS_DISPOSABLE: "yes"
+  NODE_ENV: "test"
+  npm_config_cache: "$CI_PROJECT_DIR/.npm"
+
+stages:
+  - verify
+
+verify:
+  stage: verify
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - .npm/
+  script:
+    - bash scripts/verify.sh
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
