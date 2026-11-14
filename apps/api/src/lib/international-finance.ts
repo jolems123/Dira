@@ -26,6 +26,7 @@ export interface InternationalTotalsInput {
 
 export function calculateInternationalTotals(input: InternationalTotalsInput) {
   const digits = currencyMinorUnits(input.currency);
+  if (input.tax !== undefined && input.taxRate !== undefined) throw new Error('Specify either explicit tax or tax rate, not both');
   if (input.tax === undefined && input.taxRate === undefined) {
     throw new Error('Explicit reviewed tax rate or tax amount required');
   }
@@ -37,7 +38,7 @@ export function calculateInternationalTotals(input: InternationalTotalsInput) {
   const decimal = (n: number) => new Prisma.Decimal(n.toString());
   const rounded = (n: Prisma.Decimal) => n.toDecimalPlaces(digits, Prisma.Decimal.ROUND_HALF_UP);
   const safeNumber = (n: Prisma.Decimal) => {
-    if (!n.isFinite() || n.abs().greaterThan(Number.MAX_SAFE_INTEGER)) throw new Error('Monetary precision range exceeded');
+    if (!n.isFinite() || n.abs().greaterThanOrEqualTo(Number.MAX_SAFE_INTEGER)) throw new Error('Monetary precision range exceeded');
     return n.toNumber();
   };
   const lineAmounts = input.lines.map(line => rounded(decimal(line.quantity).times(decimal(line.unitPrice))));
