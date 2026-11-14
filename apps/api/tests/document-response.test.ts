@@ -20,6 +20,9 @@ describe('document response filename safety', () => {
   it('removes Unicode line and paragraph separators', () => {
     expect(safeAttachmentName('invoice\u2028X-Fake.pdf')).toBe('invoiceX-Fake.pdf');
   });
+  it('removes DEL, C1 controls and Arabic letter mark from attachment names', () => {
+    expect(safeAttachmentName('invoice\u007f\u0085\u061c.pdf')).toBe('invoice.pdf');
+  });
   it('does not expose hidden or dot-only download names', () => {
     expect(safeAttachmentName('...')).toBe('document');
     expect(safeAttachmentName('.env')).toBe('env');
