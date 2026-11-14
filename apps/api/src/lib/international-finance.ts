@@ -1,3 +1,5 @@
+import { Prisma } from '@prisma/client';
+
 /**
  * Opt-in international arithmetic. Never infer a country's tax rate from currency.
  * The caller must supply a jurisdiction-reviewed tax rate or explicit tax amount.
@@ -27,19 +29,30 @@ export function calculateInternationalTotals(input: InternationalTotalsInput) {
   if (input.tax === undefined && input.taxRate === undefined) {
     throw new Error('Explicit reviewed tax rate or tax amount required');
   }
-  const valid = (value: number) => Number.isFinite(value) && value >= 0;
+  const valid = (value: number) => Number.isFinite(value) && value >= 0 && Number.isSafeInteger(Math.trunc(value));
   if (input.taxRate !== undefined && (!valid(input.taxRate) || input.taxRate > 1)) throw new Error('Invalid tax rate');
   if (input.tax !== undefined && !valid(input.tax)) throw new Error('Invalid tax amount');
   if (input.lines.some(line => !valid(line.quantity) || !valid(line.unitPrice))) throw new Error('Invalid line amount');
   if (!valid(input.deliveryFee ?? 0) || !valid(input.discount ?? 0)) throw new Error('Invalid adjustment');
-  const round = (n: number) => Number(n.toFixed(digits));
-  const lineTotals = input.lines.map(line => round(line.quantity * line.unitPrice));
-  const subtotal = round(lineTotals.reduce((sum, value) => sum + value, 0));
-  const deliveryFee = round(input.deliveryFee ?? 0);
-  const discount = round(input.discount ?? 0);
-  if (discount > subtotal + deliveryFee) throw new Error('Discount exceeds taxable base');
-  const tax = round(input.tax ?? ((subtotal + deliveryFee - discount) * input.taxRate!));
-  const total = round(subtotal + deliveryFee - discount + tax);
-  if (![subtotal, tax, total].every(Number.isFinite)) throw new Error('Invalid monetary result');
+  const decimal = (n: number) => new Prisma.Decimal(n.toString());
+  const rounded = (n: Prisma.Decimal) => n.toDecimalPlaces(digits, Prisma.Decimal.ROUND_HALF_UP);
+  const safeNumber = (n: Prisma.Decimal) => {
+    if (!n.isFinite() || n.abs().greaterThan(Number.MAX_SAFE_INTEGER)) throw new Error('Monetary precision range exceeded');
+    return n.toNumber();
+  };
+  const lineAmounts = input.lines.map(line => rounded(decimal(line.quantity).times(decimal(line.unitPrice))));
+  const lineTotals = lineAmounts.map(safeNumber);
+  const subtotalAmount = lineAmounts.reduce((sum, value) => sum.plus(value), new Prisma.Decimal(0));
+  const deliveryAmount = rounded(decimal(input.deliveryFee ?? 0));
+  const discountAmount = rounded(decimal(input.discount ?? 0));
+  const taxableAmount = subtotalAmount.plus(deliveryAmount).minus(discountAmount);
+  if (taxableAmount.isNegative()) throw new Error('Discount exceeds taxable base');
+  const taxAmount = rounded(input.tax !== undefined ? decimal(input.tax) : taxableAmount.times(decimal(input.taxRate!)));
+  const totalAmount = taxableAmount.plus(taxAmount);
+  const subtotal = safeNumber(subtotalAmount);
+  const deliveryFee = safeNumber(deliveryAmount);
+  const discount = safeNumber(discountAmount);
+  const tax = safeNumber(taxAmount);
+  const total = safeNumber(totalAmount);
   return { currency: input.currency, lineTotals, subtotal, deliveryFee, discount, tax, total };
 }
