@@ -37,6 +37,8 @@ check_rejected 'missing disposable acknowledgement' 'postgresql://localhost/comp
 check_rejected 'production environment' 'postgresql://localhost/company_test' yes production
 check_rejected 'socket override' 'postgresql://localhost/company_test?host=/tmp' yes test
 check_rejected 'schema override' 'postgresql://localhost/company_test?socket=/tmp' yes test
+check_rejected 'hostaddr override' 'postgresql://localhost/company_test?hostaddr=203.0.113.10' yes test
+check_rejected 'service override' 'postgresql://localhost/company_test?service=production' yes test
 check_rejected 'encoded database path' 'postgresql://localhost/company%2Ftest' yes test
 : > "$VERIFY_GUARD_CALLS"
 CI_DATABASE_URL='postgresql://localhost/company_test' CI_DATABASE_IS_DISPOSABLE=yes NODE_ENV=test bash "$ROOT/scripts/verify.sh" >/dev/null
