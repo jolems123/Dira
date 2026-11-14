@@ -26,6 +26,13 @@ describe('international finance fail-closed arithmetic', () => {
       { quantity: 1, unitPrice: Number.MAX_SAFE_INTEGER },
     ] })).toThrow(/precision|range|amount/i);
   });
+  it('rejects contradictory explicit tax and tax rate', () => {
+    expect(() => calculateInternationalTotals({ currency: 'USD', tax: 5, taxRate: 0.2, lines: [{ quantity: 1, unitPrice: 100 }] })).toThrow(/tax/i);
+  });
+  it('rejects fractional quantities below zero and unsupported currency casing', () => {
+    expect(() => calculateInternationalTotals({ currency: 'USD', tax: 0, lines: [{ quantity: -0.1, unitPrice: 1 }] })).toThrow();
+    expect(() => currencyMinorUnits('usd')).toThrow();
+  });
   it('rejects unknown currencies and invalid rates rather than guessing', () => {
     expect(() => currencyMinorUnits('ZZZ')).toThrow();
     expect(() => calculateInternationalTotals({ currency: 'USD', taxRate: -1, lines: [] })).toThrow();
