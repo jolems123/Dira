@@ -11,7 +11,7 @@ export function safeAttachmentName(filename: string): string {
     .replace(/[._\s]+$/g, '');
   // Windows treats these basenames as devices even when followed by an extension.
   // Prefixing preserves the visible name while making it a regular filename.
-  return /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(safe)
+  return /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(safe)
     ? '_' + safe
     : safe || 'document';
 }
