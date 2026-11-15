@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateUpload } from '../src/lib/uploads';
+import { resolveStoragePath, validateUpload } from '../src/lib/uploads';
 
 const candidate = (filename: string, mimeType: string, content: Buffer, size = content.length) =>
   validateUpload({ filename, mimeType, content, size });
@@ -30,5 +30,18 @@ describe('document upload byte validation', () => {
 
   it('rejects binary data masquerading as CSV', () => {
     expect(candidate('data.csv', 'text/csv', Buffer.from([97, 44, 98, 0, 99])).ok).toBe(false);
+  });
+});
+
+
+describe('storage path boundary validation', () => {
+  it('rejects empty and dot-only storage keys rather than resolving to the upload directory', () => {
+    for (const key of ['', '.', '  ']) {
+      expect(() => resolveStoragePath('/tmp/dira-uploads', key)).toThrow('Invalid storage path');
+    }
+  });
+
+  it('accepts a normal generated storage key inside the upload directory', () => {
+    expect(resolveStoragePath('/tmp/dira-uploads', 'upload-123.pdf')).toBe('/tmp/dira-uploads/upload-123.pdf');
   });
 });
