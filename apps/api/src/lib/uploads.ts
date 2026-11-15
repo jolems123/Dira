@@ -102,7 +102,7 @@ export function validateUpload(candidate: UploadCandidate): UploadValidationResu
  */
 export function resolveStoragePath(uploadRoot: string, storageName: string): string {
   const root = path.resolve(uploadRoot);
-  if (storageName !== path.basename(storageName) || storageName.includes('..') || /[\\/]/.test(storageName)) {
+  if (!storageName.trim() || storageName === '.' || storageName !== path.basename(storageName) || storageName.includes('..') || /[\\/]/.test(storageName)) {
     throw Object.assign(new Error('Invalid storage path'), { status: 400 });
   }
   const resolved = path.resolve(root, storageName);
