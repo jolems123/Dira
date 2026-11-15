@@ -362,6 +362,10 @@ describe('state machines', () => {
     expect(isQuoteExpired(new Date(Date.now() - 1000))).toBe(true);
     expect(isQuoteExpired(new Date(Date.now() + 1000))).toBe(false);
     expect(isQuoteExpired(null)).toBe(false);
+    // An expiry instant is exclusive: an award at the exact deadline is too late.
+    const deadline = new Date('2026-11-15T12:00:00.000Z');
+    expect(isQuoteExpired(deadline, new Date(deadline))).toBe(true);
+    expect(isQuoteExpired(deadline, new Date(deadline.getTime() - 1))).toBe(false);
   });
 });
 
