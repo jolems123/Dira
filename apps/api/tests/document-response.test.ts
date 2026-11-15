@@ -43,4 +43,10 @@ describe('document response filename safety', () => {
     expect(result.length).toBeLessThanOrEqual(180);
     expect(result.endsWith('.')).toBe(false);
   });
+  it('neutralizes legacy Windows superscript device aliases', () => {
+    for (const name of ['COM¹.txt', 'COM²', 'COM³.csv', 'LPT¹.pdf', 'LPT²', 'LPT³.docx']) {
+      expect(safeAttachmentName(name)).toBe('_' + name);
+    }
+  });
+
 });
