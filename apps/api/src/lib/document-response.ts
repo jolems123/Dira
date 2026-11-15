@@ -9,5 +9,9 @@ export function safeAttachmentName(filename: string): string {
     .slice(0, 180)
     // Truncation can expose a trailing dot or space that was not trailing before.
     .replace(/[._\s]+$/g, '');
-  return safe || 'document';
+  // Windows treats these basenames as devices even when followed by an extension.
+  // Prefixing preserves the visible name while making it a regular filename.
+  return /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\\.|$)/i.test(safe)
+    ? '_' + safe
+    : safe || 'document';
 }
