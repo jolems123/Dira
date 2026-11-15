@@ -32,6 +32,8 @@ describe('document response filename safety', () => {
       expect(safeAttachmentName(name)).toBe('_' + name);
     }
     expect(safeAttachmentName('invoice-CON.pdf')).toBe('invoice-CON.pdf');
+    expect(safeAttachmentName('COM9.txt')).toBe('_COM9.txt');
+    expect(safeAttachmentName('LPT1.pdf')).toBe('_LPT1.pdf');
   });
   it('removes trailing Windows-ambiguous dots and spaces', () => {
     expect(safeAttachmentName('invoice.pdf.  ')).toBe('invoice.pdf');
