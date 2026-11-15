@@ -49,4 +49,9 @@ describe('document response filename safety', () => {
     }
   });
 
+  it('neutralizes Windows device aliases with spaces before extensions', () => {
+    for (const name of ['CON .pdf', 'PRN  .txt', 'COM1 .csv', 'LPT² .docx']) {
+      expect(safeAttachmentName(name)).toBe('_' + name);
+    }
+  });
 });
