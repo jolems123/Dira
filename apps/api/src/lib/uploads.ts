@@ -105,6 +105,10 @@ export function resolveStoragePath(uploadRoot: string, storageName: string): str
   if (!storageName.trim() || storageName === '.' || storageName !== path.basename(storageName) || storageName.includes('..') || /[\\/]/.test(storageName)) {
     throw Object.assign(new Error('Invalid storage path'), { status: 400 });
   }
+  // Reject platform-specific device names and alternate streams even on Linux hosts.
+  if (/[\\/:*?"<>|\x00-\x1f]/.test(storageName) || /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\s*\.|$)/i.test(storageName) || /[. ]$/.test(storageName)) {
+    throw Object.assign(new Error('Invalid storage path'), { status: 400 });
+  }
   const resolved = path.resolve(root, storageName);
   if (resolved !== path.join(root, storageName)) {
     throw Object.assign(new Error('Invalid storage path'), { status: 400 });
