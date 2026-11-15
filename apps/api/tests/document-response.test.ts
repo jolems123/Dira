@@ -27,6 +27,12 @@ describe('document response filename safety', () => {
     expect(safeAttachmentName('...')).toBe('document');
     expect(safeAttachmentName('.env')).toBe('env');
   });
+  it('neutralizes Windows device names, including names with extensions', () => {
+    for (const name of ['CON', 'con.pdf', 'PRN.txt', 'AUX', 'NUL.csv', 'COM1.pdf', 'LPT9.docx']) {
+      expect(safeAttachmentName(name)).toBe('_' + name);
+    }
+    expect(safeAttachmentName('invoice-CON.pdf')).toBe('invoice-CON.pdf');
+  });
   it('removes trailing Windows-ambiguous dots and spaces', () => {
     expect(safeAttachmentName('invoice.pdf.  ')).toBe('invoice.pdf');
   });
