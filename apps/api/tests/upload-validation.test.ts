@@ -36,7 +36,7 @@ describe('document upload byte validation', () => {
 
 describe('storage path boundary validation', () => {
   it('rejects empty and dot-only storage keys rather than resolving to the upload directory', () => {
-    for (const key of ['', '.', '  ']) {
+    for (const key of ['', '.', '  ', 'file:alternate.pdf', 'CON.pdf', 'file?.pdf', 'file*.pdf', 'file|name.pdf']) {
       expect(() => resolveStoragePath('/tmp/dira-uploads', key)).toThrow('Invalid storage path');
     }
   });
