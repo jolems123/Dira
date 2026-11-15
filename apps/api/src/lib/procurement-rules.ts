@@ -331,7 +331,7 @@ export function isQuoteExpired(validUntil: Date | null | undefined, now = new Da
     throw new RangeError('Invalid quote expiry or comparison date');
   }
   if (!validUntil) return false;
-  return validUntil.getTime() < now.getTime();
+  return validUntil.getTime() <= now.getTime();
 }
 
 export type MatchSeverity = 'BLOCKING' | 'WARNING';
