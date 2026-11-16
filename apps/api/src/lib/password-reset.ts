@@ -16,6 +16,12 @@ export async function consumeResetToken(
   });
   if (claimed.count !== 1) return false;
   await tx.user.update({ where: { id: input.userId }, data: { passwordHash: input.passwordHash } });
+  // A successful password change invalidates any other issued reset links.
+  // This runs in the same transaction as the password change and token claim.
+  await tx.passwordResetToken.updateMany({
+    where: { userId: input.userId, usedAt: null },
+    data: { usedAt: input.now },
+  });
   await tx.refreshToken.updateMany({ where: { userId: input.userId, revokedAt: null }, data: { revokedAt: input.now } });
   return true;
 }
