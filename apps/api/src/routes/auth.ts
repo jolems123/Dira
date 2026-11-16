@@ -1,4 +1,5 @@
 import { consumeResetToken } from '../lib/password-reset';
+import { passwordInput } from '../lib/password-input';
 import { validRefreshToken } from '../lib/refresh-token-format';
 import { validPasswordResetToken } from '../lib/password-reset-token-format';
 import { parseRefreshCookie, refreshCookieHeader, clearRefreshCookieHeader } from '../lib/refresh-cookie';
@@ -17,13 +18,13 @@ const registerSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
   email: z.string().email().transform((value) => value.toLowerCase()),
-  password: z.string().min(8),
+  password: passwordInput,
   organizationName: z.string().min(2).optional(),
   organizationType: z.enum(['BUYER', 'SUPPLIER', 'BOTH']).default('BUYER'),
 });
-const loginSchema = z.object({ email: z.string().email().transform((value) => value.toLowerCase()), password: z.string().min(8) });
+const loginSchema = z.object({ email: z.string().email().transform((value) => value.toLowerCase()), password: passwordInput });
 const forgotPasswordSchema = z.object({ email: z.string().email().transform((value) => value.toLowerCase()) });
-const resetPasswordSchema = z.object({ token: z.string().refine(validPasswordResetToken, 'Invalid reset token format'), password: z.string().min(8) });
+const resetPasswordSchema = z.object({ token: z.string().refine(validPasswordResetToken, 'Invalid reset token format'), password: passwordInput });
 
 function publicUser(user: { id: string; firstName: string; lastName: string; email: string; status: string }, membership?: { organizationId: string; role: string }) {
   return { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, status: user.status, organizationId: membership?.organizationId, role: membership?.role };
