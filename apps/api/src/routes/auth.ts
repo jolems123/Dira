@@ -110,9 +110,15 @@ authRouter.post('/login', async (req, res, next) => {
 authRouter.post('/refresh', async (req, res, next) => {
   try {
     const token = refreshTokenFromRequest(req);
-    if (!validRefreshToken(token)) return res.status(400).json({ message: 'Invalid refresh token format' });
+    if (!validRefreshToken(token)) {
+      res.setHeader('Set-Cookie', clearRefreshCookieHeader(env.nodeEnv === 'production'));
+      return res.status(400).json({ message: 'Invalid refresh token format' });
+    }
     const stored = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(token) } });
-    if (!stored) return res.status(401).json({ message: 'Refresh token is invalid' });
+    if (!stored) {
+      res.setHeader('Set-Cookie', clearRefreshCookieHeader(env.nodeEnv === 'production'));
+      return res.status(401).json({ message: 'Refresh token is invalid' });
+    }
 
     // A previously rotated credential is evidence of replay. Revoke every active
     // refresh credential for this account so the rotated child cannot survive.
@@ -121,9 +127,13 @@ authRouter.post('/refresh', async (req, res, next) => {
         where: { userId: stored.userId, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      res.setHeader('Set-Cookie', clearRefreshCookieHeader(env.nodeEnv === 'production'));
       return res.status(401).json({ message: 'Refresh token replay detected; sign in again' });
     }
-    if (stored.expiresAt <= new Date()) return res.status(401).json({ message: 'Refresh token has expired' });
+    if (stored.expiresAt <= new Date()) {
+      res.setHeader('Set-Cookie', clearRefreshCookieHeader(env.nodeEnv === 'production'));
+      return res.status(401).json({ message: 'Refresh token has expired' });
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: stored.userId },
