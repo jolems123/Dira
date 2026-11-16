@@ -19,6 +19,7 @@ describe('refresh token replay protection', () => {
 
     const replay = await api().post(`${BASE}/auth/refresh`).set('Cookie', initialCookie);
     expect(replay.status).toBe(401);
+    expect(String(replay.headers['set-cookie'])).toMatch(/dira_refresh_token=;/);
     const subsequent = await api().post(`${BASE}/auth/refresh`).set('Cookie', rotatedCookie);
     expect(subsequent.status).toBe(401);
   });
@@ -34,5 +35,6 @@ describe('refresh token replay protection', () => {
     ]);
     expect(results.filter((r) => r.status === 200)).toHaveLength(1);
     expect(results.filter((r) => r.status === 401)).toHaveLength(1);
+    expect(String(results.find((r) => r.status === 401)?.headers['set-cookie'])).toMatch(/dira_refresh_token=;/);
   });
 });
