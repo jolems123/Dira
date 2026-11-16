@@ -1,4 +1,5 @@
 import { consumeResetToken } from '../lib/password-reset';
+import { validRefreshToken } from '../lib/refresh-token-format';
 import { parseRefreshCookie, refreshCookieHeader, clearRefreshCookieHeader } from '../lib/refresh-cookie';
 import bcrypt from 'bcryptjs';
 import { Request, Response, Router } from 'express';
@@ -107,9 +108,9 @@ authRouter.post('/login', async (req, res, next) => {
 
 authRouter.post('/refresh', async (req, res, next) => {
   try {
-    const token = z.string().safeParse(refreshTokenFromRequest(req));
-    if (!token.success) return res.status(400).json({ message: 'Refresh token is required' });
-    const stored = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(token.data) } });
+    const token = refreshTokenFromRequest(req);
+    if (!validRefreshToken(token)) return res.status(400).json({ message: 'Invalid refresh token format' });
+    const stored = await prisma.refreshToken.findUnique({ where: { tokenHash: hashToken(token) } });
     if (!stored) return res.status(401).json({ message: 'Refresh token is invalid' });
 
     // A previously rotated credential is evidence of replay. Revoke every active
