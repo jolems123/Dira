@@ -1,5 +1,6 @@
 import { consumeResetToken } from '../lib/password-reset';
 import { validRefreshToken } from '../lib/refresh-token-format';
+import { validPasswordResetToken } from '../lib/password-reset-token-format';
 import { parseRefreshCookie, refreshCookieHeader, clearRefreshCookieHeader } from '../lib/refresh-cookie';
 import bcrypt from 'bcryptjs';
 import { Request, Response, Router } from 'express';
@@ -22,7 +23,7 @@ const registerSchema = z.object({
 });
 const loginSchema = z.object({ email: z.string().email().transform((value) => value.toLowerCase()), password: z.string().min(8) });
 const forgotPasswordSchema = z.object({ email: z.string().email().transform((value) => value.toLowerCase()) });
-const resetPasswordSchema = z.object({ token: z.string().min(32), password: z.string().min(8) });
+const resetPasswordSchema = z.object({ token: z.string().refine(validPasswordResetToken, 'Invalid reset token format'), password: z.string().min(8) });
 
 function publicUser(user: { id: string; firstName: string; lastName: string; email: string; status: string }, membership?: { organizationId: string; role: string }) {
   return { id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email, status: user.status, organizationId: membership?.organizationId, role: membership?.role };
