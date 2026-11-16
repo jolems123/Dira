@@ -160,6 +160,7 @@ authRouter.post('/refresh', async (req, res, next) => {
     });
     if (!succeeded) {
       await prisma.refreshToken.updateMany({ where: { userId: stored.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+      res.setHeader('Set-Cookie', clearRefreshCookieHeader(env.nodeEnv === 'production'));
       return res.status(401).json({ message: 'Refresh token replay detected; sign in again' });
     }
     setRefreshCookie(res, issued.refreshToken);
