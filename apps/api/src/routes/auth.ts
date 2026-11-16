@@ -5,7 +5,7 @@ import { Request, Response, Router } from 'express';
 import crypto from 'node:crypto';
 import { signAccessToken } from '../lib/access-token';
 import { selectActiveMembership } from '../lib/active-membership';
-import { mayRefreshSession } from '../lib/refresh-eligibility';
+import { mayRefreshSession, revokeIneligibleRefreshSessions } from '../lib/refresh-eligibility';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { env } from '../lib/env';
@@ -127,7 +127,11 @@ authRouter.post('/refresh', async (req, res, next) => {
       where: { id: stored.userId },
       select: { status: true, organizationMembers: { where: { status: 'ACTIVE' }, select: { id: true }, take: 1 } },
     });
-    if (!mayRefreshSession(user)) return res.status(401).json({ message: 'Session invalid' });
+    if (!mayRefreshSession(user)) {
+      await revokeIneligibleRefreshSessions(prisma, stored.userId);
+      res.setHeader('Set-Cookie', clearRefreshCookieHeader(env.nodeEnv === 'production'));
+      return res.status(401).json({ message: 'Session invalid' });
+    }
 
     const issued = tokens(stored.userId);
     // Compare-and-swap ensures that concurrent refresh calls never both succeed.
