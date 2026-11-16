@@ -5,6 +5,7 @@ import { Request, Response, Router } from 'express';
 import crypto from 'node:crypto';
 import { signAccessToken } from '../lib/access-token';
 import { selectActiveMembership } from '../lib/active-membership';
+import { mayRefreshSession } from '../lib/refresh-eligibility';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { env } from '../lib/env';
@@ -122,8 +123,11 @@ authRouter.post('/refresh', async (req, res, next) => {
     }
     if (stored.expiresAt <= new Date()) return res.status(401).json({ message: 'Refresh token has expired' });
 
-    const user = await prisma.user.findUnique({ where: { id: stored.userId }, select: { status: true } });
-    if (!user || user.status !== 'ACTIVE') return res.status(401).json({ message: 'Session invalid' });
+    const user = await prisma.user.findUnique({
+      where: { id: stored.userId },
+      select: { status: true, organizationMembers: { where: { status: 'ACTIVE' }, select: { id: true }, take: 1 } },
+    });
+    if (!mayRefreshSession(user)) return res.status(401).json({ message: 'Session invalid' });
 
     const issued = tokens(stored.userId);
     // Compare-and-swap ensures that concurrent refresh calls never both succeed.
