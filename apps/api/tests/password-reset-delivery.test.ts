@@ -12,3 +12,15 @@ describe('undelivered password reset cleanup', () => {
     await expect(revokeUndeliveredResetToken({ passwordResetToken: { updateMany } }, 'abc', new Date())).rejects.toThrow('db unavailable');
   });
 });
+
+// Regression guard: delivery failure must revoke the hash of the token just issued.
+// The auth route previously referenced an undefined `tokenHash` identifier here.
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+it('wires delivery failure cleanup to the issued reset token hash', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const auth = readFileSync(resolve(here, '../src/routes/auth.ts'), 'utf8');
+  expect(auth).toMatch(/revokeUndeliveredResetToken\(prisma,\s*hashToken\(resetToken\),\s*new Date\(\)\)/);
+});
