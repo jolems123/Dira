@@ -1,4 +1,5 @@
 import { sendPasswordResetEmail } from '../lib/password-reset-email';
+import { shouldAttemptPasswordResetDelivery } from '../lib/password-reset-delivery-policy';
 import { publicPasswordResetResponse } from '../lib/password-reset-response';
 import { consumeResetToken } from '../lib/password-reset';
 import { revokeUndeliveredResetToken } from '../lib/password-reset-delivery';
@@ -207,7 +208,7 @@ authRouter.post('/forgot-password', async (req, res, next) => {
       if (!resetToken) {
         return res.json(publicPasswordResetResponse());
       }
-      if (env.nodeEnv === 'production') {
+      if (shouldAttemptPasswordResetDelivery(env.nodeEnv)) {
         try {
           await sendPasswordResetEmail({
             token: resetToken,
