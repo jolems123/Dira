@@ -1,3 +1,4 @@
+import { sendPasswordResetEmail } from '../lib/password-reset-email';
 import { consumeResetToken } from '../lib/password-reset';
 import { passwordInput } from '../lib/password-input';
 import { validRefreshToken } from '../lib/refresh-token-format';
@@ -203,6 +204,20 @@ authRouter.post('/forgot-password', async (req, res, next) => {
       const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
       await prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
       await prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + 30 * 60 * 1000) } });
+      if (env.nodeEnv === 'production') {
+        try {
+          await sendPasswordResetEmail({
+            token: resetToken,
+            email: user.email,
+            webOrigin: env.webOrigin,
+            apiKey: process.env.RESEND_API_KEY ?? '',
+            from: process.env.DIRA_EMAIL_FROM ?? '',
+          });
+        } catch {
+          // Do not reveal whether this address belongs to an account or log the reset token.
+          console.error('Password reset email delivery failed');
+        }
+      }
     }
     const response: { message: string; resetToken?: string } = { message: 'If the account exists, reset instructions will be sent.' };
     if (resetToken && env.nodeEnv !== 'production') response.resetToken = resetToken;
