@@ -1,5 +1,6 @@
 import { sendPasswordResetEmail } from '../lib/password-reset-email';
 import { consumeResetToken } from '../lib/password-reset';
+import { revokeUndeliveredResetToken } from '../lib/password-reset-delivery';
 import { mayIssuePasswordReset } from '../lib/password-reset-cooldown';
 import { passwordInput } from '../lib/password-input';
 import { validRefreshToken } from '../lib/refresh-token-format';
@@ -225,6 +226,11 @@ authRouter.post('/forgot-password', async (req, res, next) => {
         } catch {
           // Do not reveal whether this address belongs to an account or log the reset token.
           console.error('Password reset email delivery failed');
+          try {
+            await revokeUndeliveredResetToken(prisma, tokenHash, new Date());
+          } catch {
+            console.error('Failed to revoke undelivered password reset credential');
+          }
         }
       }
     }
