@@ -4,5 +4,8 @@ export async function revokeUndeliveredResetToken(
   tokenHash: string,
   now: Date,
 ): Promise<void> {
-  await db.passwordResetToken.updateMany({ where: { tokenHash, usedAt: null }, data: { usedAt: now } });
+  const result = await db.passwordResetToken.updateMany({ where: { tokenHash, usedAt: null }, data: { usedAt: now } });
+  if (result.count !== 1) {
+    throw new Error('Password reset cleanup did not revoke a credential');
+  }
 }
