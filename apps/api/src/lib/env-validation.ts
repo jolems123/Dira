@@ -5,7 +5,7 @@ export function validateProductionEnvironment(values: NodeJS.ProcessEnv | Record
   const required = [
     'DATABASE_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'WEB_ORIGIN',
     'API_URL', 'FILE_S3_REGION', 'FILE_S3_BUCKET', 'FILE_S3_ACCESS_KEY_ID',
-    'FILE_S3_SECRET_ACCESS_KEY',
+    'FILE_S3_SECRET_ACCESS_KEY', 'RESEND_API_KEY', 'DIRA_EMAIL_FROM',
   ] as const;
   for (const key of required) {
     if (!values[key]?.trim()) throw new Error(`Missing required production setting: ${key}`);
@@ -45,6 +45,13 @@ export function validateProductionEnvironment(values: NodeJS.ProcessEnv | Record
     } catch {
       throw new Error(`${key} must be a single HTTPS origin with no credentials, path or wildcard`);
     }
+  }
+  // Production recovery must not silently accept requests when outbound mail
+  // is unconfigured. Do not echo sender or API credentials in errors.
+  const sender = values.DIRA_EMAIL_FROM!;
+  const senderAddress = /^(?:[^<>\\r\\n]+ <)?([^\\s<>@\\r\\n]+@[^\\s<>@\\r\\n]+\\.[^\\s<>@\\r\\n]+)>?$/.exec(sender);
+  if (!senderAddress || (sender.includes('<') !== sender.includes('>'))) {
+    throw new Error('DIRA_EMAIL_FROM must contain a valid sender email address');
   }
   if (values.FILE_STORAGE_PROVIDER !== 's3') {
     throw new Error('FILE_STORAGE_PROVIDER=s3 is required in production');
