@@ -1,7 +1,7 @@
 import { sendPasswordResetEmail } from '../lib/password-reset-email';
 import { consumeResetToken } from '../lib/password-reset';
 import { revokeUndeliveredResetToken } from '../lib/password-reset-delivery';
-import { mayIssuePasswordReset } from '../lib/password-reset-cooldown';
+import { issuePasswordResetAtomically } from '../lib/password-reset-issue';
 import { passwordInput } from '../lib/password-input';
 import { validRefreshToken } from '../lib/refresh-token-format';
 import { validPasswordResetToken } from '../lib/password-reset-token-format';
@@ -202,18 +202,10 @@ authRouter.post('/forgot-password', async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
     let resetToken: string | undefined;
     if (user && user.status === 'ACTIVE') {
-      const latest = await prisma.passwordResetToken.findFirst({
-        where: { userId: user.id },
-        orderBy: { createdAt: 'desc' },
-        select: { createdAt: true },
-      });
-      if (!mayIssuePasswordReset(latest, new Date())) {
+      resetToken = (await issuePasswordResetAtomically(prisma, user.id, new Date())) ?? undefined;
+      if (!resetToken) {
         return res.json({ message: 'If the account exists, reset instructions will be sent.' });
       }
-      resetToken = crypto.randomBytes(32).toString('hex');
-      const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-      await prisma.passwordResetToken.deleteMany({ where: { userId: user.id, usedAt: null } });
-      await prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt: new Date(Date.now() + 30 * 60 * 1000) } });
       if (env.nodeEnv === 'production') {
         try {
           await sendPasswordResetEmail({
