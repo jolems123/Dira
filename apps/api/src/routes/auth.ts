@@ -1,4 +1,5 @@
 import { sendPasswordResetEmail } from '../lib/password-reset-email';
+import { publicPasswordResetResponse } from '../lib/password-reset-response';
 import { consumeResetToken } from '../lib/password-reset';
 import { revokeUndeliveredResetToken } from '../lib/password-reset-delivery';
 import { issuePasswordResetAtomically } from '../lib/password-reset-issue';
@@ -204,7 +205,7 @@ authRouter.post('/forgot-password', async (req, res, next) => {
     if (user && user.status === 'ACTIVE') {
       resetToken = (await issuePasswordResetAtomically(prisma, user.id, new Date())) ?? undefined;
       if (!resetToken) {
-        return res.json({ message: 'If the account exists, reset instructions will be sent.' });
+        return res.json(publicPasswordResetResponse());
       }
       if (env.nodeEnv === 'production') {
         try {
@@ -226,9 +227,8 @@ authRouter.post('/forgot-password', async (req, res, next) => {
         }
       }
     }
-    const response: { message: string; resetToken?: string } = { message: 'If the account exists, reset instructions will be sent.' };
-    if (resetToken && env.nodeEnv !== 'production') response.resetToken = resetToken;
-    return res.json(response);
+    // Never expose bearer reset credentials through HTTP, including preview deployments.
+    return res.json(publicPasswordResetResponse());
   } catch (error) {
     return next(error);
   }
