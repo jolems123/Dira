@@ -219,7 +219,7 @@ authRouter.post('/forgot-password', async (req, res, next) => {
           // Do not reveal whether this address belongs to an account or log the reset token.
           console.error('Password reset email delivery failed');
           try {
-            await revokeUndeliveredResetToken(prisma, tokenHash, new Date());
+            await revokeUndeliveredResetToken(prisma, hashToken(resetToken), new Date());
           } catch {
             console.error('Failed to revoke undelivered password reset credential');
           }
