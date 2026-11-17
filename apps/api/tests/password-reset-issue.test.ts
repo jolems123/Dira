@@ -18,7 +18,7 @@ describe('atomic password-reset issuance', () => {
 
   it('locks the account before checking the cooldown and issuing a token', async () => {
     const { db, calls, tx } = database(null);
-    const token = await issuePasswordResetAtomically(db, 'user-1', now);
+    const token = await issuePasswordResetAtomically(db as any, 'user-1', now);
     expect(token).toMatch(/^[a-f0-9]{64}$/);
     expect(calls).toEqual(['lock', 'read', 'delete', 'create']);
     expect(tx.passwordResetToken.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -28,14 +28,14 @@ describe('atomic password-reset issuance', () => {
 
   it('does not replace a link during cooldown', async () => {
     const { db, calls } = database(new Date(now.getTime() - 10_000));
-    expect(await issuePasswordResetAtomically(db, 'user-1', now)).toBeNull();
+    expect(await issuePasswordResetAtomically(db as any, 'user-1', now)).toBeNull();
     expect(calls).toEqual(['lock', 'read']);
   });
 
   it('does not issue a token when the account lock cannot be acquired', async () => {
     const { db, tx } = database(null);
     tx.$queryRaw.mockResolvedValueOnce([]);
-    await expect(issuePasswordResetAtomically(db, 'missing', now)).rejects.toThrow('Reset account unavailable');
+    await expect(issuePasswordResetAtomically(db as any, 'missing', now)).rejects.toThrow('Reset account unavailable');
     expect(tx.passwordResetToken.create).not.toHaveBeenCalled();
   });
 });
