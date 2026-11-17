@@ -8,13 +8,14 @@ const valid = {
   FILE_STORAGE_PROVIDER: 's3', FILE_S3_REGION: 'us-east-1',
   FILE_S3_BUCKET: 'private-example', FILE_S3_ACCESS_KEY_ID: 'example-key',
   FILE_S3_SECRET_ACCESS_KEY: 'example-secret',
+  RESEND_API_KEY: 'test-resend-key', DIRA_EMAIL_FROM: 'Dira <noreply@dira.example>',
 };
 
 describe('production environment validation', () => {
   it('accepts explicitly configured production settings', () => {
     expect(() => validateProductionEnvironment(valid)).not.toThrow();
   });
-  it.each(['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'DATABASE_URL', 'WEB_ORIGIN', 'API_URL', 'FILE_S3_BUCKET'])(
+  it.each(['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'DATABASE_URL', 'WEB_ORIGIN', 'API_URL', 'FILE_S3_BUCKET', 'RESEND_API_KEY', 'DIRA_EMAIL_FROM'])(
     'rejects missing %s', (key) => {
       expect(() => validateProductionEnvironment({ ...valid, [key]: '' })).toThrow();
     },
@@ -31,6 +32,11 @@ describe('production environment validation', () => {
   });
   it('rejects missing or non-postgres database URLs without disclosing credentials', () => {
     expect(() => validateProductionEnvironment({ ...valid, DATABASE_URL: 'mysql://somewhere' })).toThrow(/DATABASE_URL/);
+  });
+  it('rejects malformed production password recovery sender without revealing its value', () => {
+    for (const sender of ['invalid', 'Name <bad>', 'person@example.org\\nBcc: other@example.org']) {
+      expect(() => validateProductionEnvironment({ ...valid, DIRA_EMAIL_FROM: sender })).toThrow(/DIRA_EMAIL_FROM/);
+    }
   });
   it('does not require production credentials during local development', () => {
     expect(() => validateProductionEnvironment({ NODE_ENV: 'test' })).not.toThrow();
