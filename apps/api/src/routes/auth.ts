@@ -144,7 +144,7 @@ authRouter.post('/refresh', async (req, res, next) => {
 
     const user = await prisma.user.findUnique({
       where: { id: stored.userId },
-      select: { status: true, organizationMembers: { where: { status: 'ACTIVE' }, select: { id: true }, take: 2 } },
+      select: { status: true, emailVerified: true, organizationMembers: { where: { status: 'ACTIVE' }, select: { id: true }, take: 2 } },
     });
     if (!mayRefreshSession(user)) {
       await revokeIneligibleRefreshSessions(prisma, stored.userId);
