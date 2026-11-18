@@ -21,7 +21,13 @@ describe('refresh session eligibility', () => {
     expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{ id: '   ' }] })).toBe(false);
     expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [null] } as never)).toBe(false);
   });
-  it('permits an active account with an active membership', () => {
-    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{ id: 'member' }] })).toBe(true);
+  it('rejects unverified accounts even when active and assigned', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', emailVerified: false, organizationMembers: [{ id: 'member' }] })).toBe(false);
+  });
+  it('rejects a missing verification flag', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{ id: 'member' }] } as never)).toBe(false);
+  });
+  it('permits an active verified account with an active membership', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', emailVerified: true, organizationMembers: [{ id: 'member' }] })).toBe(true);
   });
 });
