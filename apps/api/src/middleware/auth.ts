@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { verifyAccessToken } from '../lib/access-token';
+import { bearerCredential } from '../lib/bearer-credential';
 import { selectActiveMembership } from '../lib/active-membership';
 import { prisma } from '../db';
 import { env } from '../lib/env';
@@ -9,8 +10,7 @@ export type AuthenticatedRequest = Request & {
 };
 
 export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  const header = req.header('authorization');
-  const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
+  const token = bearerCredential(req.header('authorization'));
   if (!token) return res.status(401).json({ message: 'Authentication required' });
 
   let payload: ReturnType<typeof verifyAccessToken>;
