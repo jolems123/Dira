@@ -1,6 +1,6 @@
 /** Only an active account with exactly one active organisation membership may renew a session. */
 export function mayRefreshSession(user: { status: string; organizationMembers: readonly { id: string }[] } | null): boolean {
-  return user?.status === 'ACTIVE' && user.organizationMembers.length === 1;
+  return user?.status === 'ACTIVE' && Array.isArray(user.organizationMembers) && user.organizationMembers.length === 1;
 }
 
 /** Revoke all active refresh credentials when the account loses renewal eligibility. */
