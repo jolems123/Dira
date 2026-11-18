@@ -13,8 +13,14 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
   const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
   if (!token) return res.status(401).json({ message: 'Authentication required' });
 
+  let payload: ReturnType<typeof verifyAccessToken>;
   try {
-    const payload = verifyAccessToken(token, env.jwtAccessSecret);
+    payload = verifyAccessToken(token, env.jwtAccessSecret);
+  } catch {
+    return res.status(401).json({ message: 'Invalid or expired access token' });
+  }
+
+  try {
     const user = await prisma.user.findUnique({
       where: { id: String(payload.sub) },
       include: { organizationMembers: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } } },
@@ -28,8 +34,8 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       role: membership.role,
     };
     return next();
-  } catch {
-    return res.status(401).json({ message: 'Invalid or expired access token' });
+  } catch (error) {
+    return next(error);
   }
 }
 
