@@ -176,10 +176,14 @@ authRouter.post('/refresh', async (req, res, next) => {
   }
 });
 
-authRouter.post('/logout', requireAuth, async (req: AuthenticatedRequest, res) => {
-  await prisma.refreshToken.updateMany({ where: { userId: req.user!.id, revokedAt: null }, data: { revokedAt: new Date() } });
-  res.setHeader('Set-Cookie', clearRefreshCookieHeader(env.nodeEnv === 'production'));
-  return res.status(204).send();
+authRouter.post('/logout', requireAuth, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    await prisma.refreshToken.updateMany({ where: { userId: req.user!.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    res.setHeader('Set-Cookie', clearRefreshCookieHeader(env.nodeEnv === 'production'));
+    return res.status(204).send();
+  } catch (error) {
+    return next(error);
+  }
 });
 
 authRouter.get('/me', requireAuth, async (req: AuthenticatedRequest, res) => {
