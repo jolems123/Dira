@@ -1743,3 +1743,9 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Tests were committed but **not executed**. No local/CI passing evidence, no merge, no deployment. GitHub Actions must not be rerun while paid runners are unavailable. Use isolated non-GitHub test infrastructure before review.
 - Rechecked branch ancestry: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` 0 ahead/0 behind. Both lack unique commits; connector does not support branch deletion.
 - NEEDS ME: email delivery credentials/domain, policy for legacy unverified accounts, secret rotation, reviewed tax profiles, final plan pricing, Paddle sandbox, Railway/S3/legal acceptance, independent PostgreSQL and security tests.
+
+## 2026-11-19 login verification gate
+- Tests-first commit `a1a0498` added a source-wiring regression guard; `85f582a` rejects unverified login before new access/refresh credentials are issued. **Not executed; not verified.** Registration still issues tokens and there is no complete verification-email/consume/resend flow, so PR #3 must remain draft and unmerged. The source-wiring test is not a substitute for authenticated API integration tests.
+- Rechecked PR #3 head `38a20ca`: no associated workflow runs and no commit statuses returned; this is **not a pass**. Historical failed runner-level runs remain unresolved. No new Actions jobs deliberately triggered.
+- Rechecked branch ancestry: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` identical to main. No supported delete-ref operation available.
+- NEEDS ME: verified outbound sender and email domain, safe policy for preexisting unverified accounts, independent disposable-PostgreSQL runtime test evidence, historical secret rotation, reviewed country tax rules, approved pricing, Railway/private S3 and legal acceptance. No live supplier transfers or subscription billing permitted.
