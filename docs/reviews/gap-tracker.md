@@ -20,7 +20,7 @@ Status is evidence-based: OPEN, IN PROGRESS, FIXED (verified), BLOCKED. Never ca
 | Release | Real CI, accessibility, deployment, privacy/legal | High | repository | Initial GitHub Actions PR workflow added; Railway/Playwright outstanding | PR CI run 42516234541 queued; no result | BLOCKED |
 
 ## NEEDS ME
-Final plan prices; tax rules per country beyond reviewed profiles; live fiscal API integrations; sandbox/live merchant accounts; accounting credentials; Railway environment; private S3 bucket; email domain; legal review; any exposed or previously used secrets to rotate.
+Email sender/domain and delivery verification; owner-approved policy for existing unverified accounts and migration/recovery before rollout. Final plan prices; tax rules per country beyond reviewed profiles; live fiscal API integrations; sandbox/live merchant accounts; accounting credentials; Railway environment; private S3 bucket; email domain; legal review; any exposed or previously used secrets to rotate.
 
 ## Branches
 - jolems123-patch-1: zero commits ahead of main, 10 behind; ancestor by compare API; deletion pending unsupported connector action.
@@ -1736,3 +1736,10 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - Tests-first commit `cb9c8ad` adds denial cases for unverified/missing email verification and a verified success case. Commits `076ad24` and `40b51ad` require `emailVerified === true` on refresh and load that field from Prisma. This is **not** complete email verification: registration/login/access middleware still issue or accept credentials for unverified accounts, and no delivery/resend flow exists. Keep PR #3 draft; do not deploy this partial enforcement without a migration and recovery path for legacy unverified accounts.
 - NEEDS ME: approve legacy-account verification/recovery migration policy and verified email delivery domain, rotate previously exposed credentials, restore executable independent test evidence; confirm reviewed tax profiles, pricing, Railway/S3 and legal signoff. No tests executed in this run; no merge, no live billing or supplier fund movement.
 - Branch comparisons reconfirmed `jolems123-patch-1` 0 ahead/10 behind and `uganda-currency` identical to main; deletion tool unavailable.
+
+## 2026-11-19 protected-route verification gate
+- Tests-first `apps/api/tests/access-eligibility.test.ts` (`434363a`) specifies fail-closed access for unverified, inactive, ambiguous and malformed membership states. Added `apps/api/src/lib/access-eligibility.ts` (`3a27917`) and integrated the guard into `requireAuth` (`49cda56`, `fcb0e9e`). This blocks previously issued access tokens for unverified users on protected routes, but **does not complete email verification**.
+- Registration still issues credentials to unverified accounts, and login still issues credentials; verification delivery, token consumption, resend, expiry and existing-account migration remain **CRITICAL OPEN**. Until those flows work, new registrations cannot access protected routes. Do not merge or deploy this partial gate independently.
+- Tests were committed but **not executed**. No local/CI passing evidence, no merge, no deployment. GitHub Actions must not be rerun while paid runners are unavailable. Use isolated non-GitHub test infrastructure before review.
+- Rechecked branch ancestry: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` 0 ahead/0 behind. Both lack unique commits; connector does not support branch deletion.
+- NEEDS ME: email delivery credentials/domain, policy for legacy unverified accounts, secret rotation, reviewed tax profiles, final plan pricing, Paddle sandbox, Railway/S3/legal acceptance, independent PostgreSQL and security tests.
