@@ -1,3 +1,4 @@
+import { canonicalEmail } from '../lib/auth-email';
 import { sendPasswordResetEmail } from '../lib/password-reset-email';
 import { shouldAttemptPasswordResetDelivery } from '../lib/password-reset-delivery-policy';
 import { publicPasswordResetResponse } from '../lib/password-reset-response';
@@ -22,13 +23,13 @@ import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 const registerSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
-  email: z.string().email().transform((value) => value.toLowerCase()),
+  email: z.string().trim().email().transform(canonicalEmail),
   password: passwordInput,
   organizationName: z.string().min(2).optional(),
   organizationType: z.enum(['BUYER', 'SUPPLIER', 'BOTH']).default('BUYER'),
 });
-const loginSchema = z.object({ email: z.string().email().transform((value) => value.toLowerCase()), password: passwordInput });
-const forgotPasswordSchema = z.object({ email: z.string().email().transform((value) => value.toLowerCase()) });
+const loginSchema = z.object({ email: z.string().trim().email().transform(canonicalEmail), password: passwordInput });
+const forgotPasswordSchema = z.object({ email: z.string().trim().email().transform(canonicalEmail) });
 const resetPasswordSchema = z.object({ token: z.string().refine(validPasswordResetToken, 'Invalid reset token format'), password: passwordInput });
 
 function publicUser(user: { id: string; firstName: string; lastName: string; email: string; status: string }, membership?: { organizationId: string; role: string }) {
