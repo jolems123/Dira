@@ -26,7 +26,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       where: { id: String(payload.sub) },
       include: { organizationMembers: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } } },
     });
-    if (!mayAccessProtectedRoute(user)) return res.status(401).json({ message: 'Invalid session' });
+    if (!user || !mayAccessProtectedRoute(user)) return res.status(401).json({ message: 'Invalid session' });
     const membership = selectActiveMembership(user.organizationMembers);
     if (!membership) return res.status(403).json({ message: 'Active organisation membership required' });
     req.user = {
