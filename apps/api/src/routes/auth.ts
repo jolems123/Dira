@@ -186,19 +186,23 @@ authRouter.post('/logout', requireAuth, async (req: AuthenticatedRequest, res, n
   }
 });
 
-authRouter.get('/me', requireAuth, async (req: AuthenticatedRequest, res) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user!.id },
-    include: { organizationMembers: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' }, include: { organization: true } } },
-  });
-  if (!user) return res.status(404).json({ message: 'User not found' });
-  const membership = selectActiveMembership(user.organizationMembers);
-  return res.json({
-    user: publicUser(user, membership),
-    organization: membership
-      ? { id: membership.organization.id, name: membership.organization.legalName, type: membership.organization.type }
-      : null,
-  });
+authRouter.get('/me', requireAuth, async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      include: { organizationMembers: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' }, include: { organization: true } } },
+    });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const membership = selectActiveMembership(user.organizationMembers);
+    return res.json({
+      user: publicUser(user, membership),
+      organization: membership
+        ? { id: membership.organization.id, name: membership.organization.legalName, type: membership.organization.type }
+        : null,
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 authRouter.post('/forgot-password', async (req, res, next) => {
