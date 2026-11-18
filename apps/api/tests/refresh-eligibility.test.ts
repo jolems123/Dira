@@ -15,6 +15,12 @@ describe('refresh session eligibility', () => {
   it('rejects a missing membership list rather than crashing', () => {
     expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: undefined } as never)).toBe(false);
   });
+  it('rejects malformed or blank membership identifiers', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{}] } as never)).toBe(false);
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{ id: '' }] })).toBe(false);
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{ id: '   ' }] })).toBe(false);
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [null] } as never)).toBe(false);
+  });
   it('permits an active account with an active membership', () => {
     expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{ id: 'member' }] })).toBe(true);
   });
