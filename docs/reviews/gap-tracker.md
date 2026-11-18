@@ -1654,3 +1654,9 @@ Final plan prices; tax rules per country beyond reviewed profiles; live fiscal A
 - This is **not** a test pass or a security acceptance. Use isolated, non-GitHub-hosted verification with disposable PostgreSQL, `scripts/verify.sh`, and human review before any merge. Required checks/branch protection must not be bypassed.
 - `docs/POSITIONING.md` exists on `fix/dira-security`, not `main`. Legacy branch ancestry rechecked: `jolems123-patch-1` is 0 ahead/10 behind main, `uganda-currency` identical to main. No delete-ref connector operation available; branches retained.
 - NEEDS ME: independent test environment and evidence; historical credential rotation; final prices and reviewed tax profiles; Railway/private S3/email/legal sign-off. No live supplier payment processing or live Paddle subscription billing.
+
+## 2026-11-18 offline-first security update
+- Tests-first commits `64428ff` and `5b3011d`: refresh eligibility now rejects malformed missing membership arrays rather than throwing; regression tests also explicitly cover multiple active memberships. Tests are committed **but not executed**; no verification or merge claimed.
+- Owner prohibits paid GitHub Actions. The security branch workflow has only a manual trigger and a disabled job; **do not dispatch it**. Verify on a disposable PostgreSQL instance outside GitHub Actions before accepting the security PR. Historical failed Actions runs with no job steps are not application test evidence.
+- Rechecked branch ancestry against main: `jolems123-patch-1` is 0 ahead/10 behind, `uganda-currency` is identical; branch deletion unavailable through current GitHub connector.
+- NEEDS ME: independent test runner/disposable database, credential rotation, security acceptance, reviewed country tax profiles, final plan prices, Paddle sandbox credentials, Railway/S3/email configuration and legal review. Live supplier money movement and live subscription billing remain prohibited.
