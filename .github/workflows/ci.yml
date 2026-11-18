@@ -1,10 +1,10 @@
 name: Dira checks
 on:
-  pull_request:
   workflow_dispatch:
 
 jobs:
   checks:
+    if: ${{ false }} # GitHub-hosted CI disabled until owner explicitly reauthorizes billing
     runs-on: ubuntu-latest
     services:
       postgres:
