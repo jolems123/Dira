@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { verifyAccessToken } from '../lib/access-token';
 import { bearerCredential } from '../lib/bearer-credential';
 import { selectActiveMembership } from '../lib/active-membership';
+import { mayAccessProtectedRoute } from '../lib/access-eligibility';
 import { prisma } from '../db';
 import { env } from '../lib/env';
 
@@ -25,7 +26,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
       where: { id: String(payload.sub) },
       include: { organizationMembers: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } } },
     });
-    if (!user || user.status !== 'ACTIVE') return res.status(401).json({ message: 'Invalid session' });
+    if (!mayAccessProtectedRoute(user)) return res.status(401).json({ message: 'Invalid session' });
     const membership = selectActiveMembership(user.organizationMembers);
     if (!membership) return res.status(403).json({ message: 'Active organisation membership required' });
     req.user = {
