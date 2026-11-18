@@ -9,6 +9,12 @@ describe('refresh session eligibility', () => {
   it('rejects an active user whose memberships have all been revoked', () => {
     expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [] })).toBe(false);
   });
+  it('rejects ambiguous active organisation memberships', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{ id: 'first' }, { id: 'second' }] })).toBe(false);
+  });
+  it('rejects a missing membership list rather than crashing', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: undefined } as never)).toBe(false);
+  });
   it('permits an active account with an active membership', () => {
     expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{ id: 'member' }] })).toBe(true);
   });
