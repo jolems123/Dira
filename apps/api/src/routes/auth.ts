@@ -100,6 +100,8 @@ authRouter.post('/login', async (req, res, next) => {
     const user = await prisma.user.findUnique({ where: { email: parsed.data.email }, include: { organizationMembers: { where: { status: 'ACTIVE' }, orderBy: { createdAt: 'asc' } } } });
     if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) return res.status(401).json({ message: 'Invalid email or password' });
     if (user.status !== 'ACTIVE') return res.status(403).json({ message: 'Account is not active' });
+    // Do not issue new credentials before ownership of the email address is verified.
+    if (user.emailVerified !== true) return res.status(403).json({ message: 'Email verification required' });
     const membership = selectActiveMembership(user.organizationMembers);
     if (!membership) return res.status(403).json({ message: 'Active organisation membership required' });
     const issued = tokens(user.id);
