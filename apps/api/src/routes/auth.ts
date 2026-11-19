@@ -66,7 +66,7 @@ authRouter.post('/register', async (req, res, next) => {
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
     const result = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
-        data: { firstName: parsed.data.firstName, lastName: parsed.data.lastName, email: parsed.data.email, passwordHash, status: 'ACTIVE', emailVerified: false },
+        data: { firstName: parsed.data.firstName, lastName: parsed.data.lastName, email: parsed.data.email, passwordHash, status: 'PENDING_VERIFICATION', emailVerified: false },
       });
       const organizationType = parsed.data.organizationType;
       const organization = await tx.organization.create({
@@ -84,10 +84,9 @@ authRouter.post('/register', async (req, res, next) => {
       });
       return { user, membership };
     });
-    const issued = tokens(result.user.id);
-    await prisma.refreshToken.create({ data: { userId: result.user.id, tokenHash: hashToken(issued.refreshToken), expiresAt: new Date(Date.now() + 7 * 86400000) } });
-    setRefreshCookie(res, issued.refreshToken);
-    return res.status(201).json({ accessToken: issued.accessToken, user: publicUser(result.user, result.membership) });
+    // Registration is deliberately non-authenticating until verified email delivery
+    // and one-time confirmation are implemented. Never issue a bearer credential here.
+    return res.status(201).json({ message: 'Registration received. Email verification is required before sign-in.', user: publicUser(result.user, result.membership) });
   } catch (error) {
     return next(error);
   }
