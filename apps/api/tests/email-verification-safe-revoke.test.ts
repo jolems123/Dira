@@ -17,6 +17,14 @@ describe('failed verification delivery cleanup', () => {
     expect(warn).toHaveBeenCalledWith('Unable to revoke undelivered verification credential');
   });
 
+  it('does not attempt database cleanup with an empty account identifier', async () => {
+    const revoke = vi.fn();
+    const warn = vi.fn();
+    expect(await safelyRevokeUndeliveredVerification(revoke, '   ', 'a'.repeat(64), warn)).toBe(false);
+    expect(revoke).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith('Unable to revoke undelivered verification credential');
+  });
+
   it('reports an unrevoked credential without exposing the hash', async () => {
     const warn = vi.fn();
     expect(await safelyRevokeUndeliveredVerification(vi.fn().mockResolvedValue(false), 'u', 'c'.repeat(64), warn)).toBe(false);
