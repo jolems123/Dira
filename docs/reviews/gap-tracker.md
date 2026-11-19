@@ -1763,3 +1763,9 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Fresh branch comparison: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` 0 ahead/0 behind. No connector ref-deletion capability available.
 - NEEDS ME: email sending domain/credentials and delivery acceptance; existing-user migration and recovery policy; independent executable test runner and disposable PostgreSQL; historical secret rotation; owner-approved pricing and jurisdiction tax rules; Railway, S3 and legal acceptance.
 - Keep security PR #3 draft; no merge until full verification workflow and critical authorization tests pass. Supplier payments remain records only; no live subscription billing.
+
+## 2026-11-19 verification-clock hardening
+- Tests-first commit `31e8184` adds invalid-Date and exact-expiry regression cases for email verification eligibility; implementation `f5afd1f` rejects invalid expiry/current clock values. **Tests not executed; no pass claimed.**
+- Registration still issues credentials before email verification. Do not merge/deploy isolated verification guards without complete token persistence, email delivery, atomic consumption, resend, recovery, and existing-account migration.
+- NEEDS ME: approved sender/domain and delivery proof; existing-unverified-account migration/recovery policy; historical credential rotation; executable disposable-PostgreSQL test evidence; final prices, jurisdiction-reviewed tax rules, Railway/private storage and privacy/legal acceptance.
+- No GitHub Actions runs intentionally triggered, no merges, no live supplier payments or subscription billing.
