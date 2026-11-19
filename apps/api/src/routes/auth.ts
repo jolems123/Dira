@@ -1,4 +1,6 @@
 import { canonicalEmail } from '../lib/auth-email';
+import { validEmailVerificationToken } from '../lib/email-verification-token';
+import { consumeEmailVerificationToken } from '../lib/email-verification-consume';
 import { sendPasswordResetEmail } from '../lib/password-reset-email';
 import { shouldAttemptPasswordResetDelivery } from '../lib/password-reset-delivery-policy';
 import { publicPasswordResetResponse } from '../lib/password-reset-response';
@@ -28,6 +30,7 @@ const registerSchema = z.object({
   organizationName: z.string().min(2).optional(),
   organizationType: z.enum(['BUYER', 'SUPPLIER', 'BOTH']).default('BUYER'),
 });
+const verifyEmailSchema = z.object({ token: z.string().refine(validEmailVerificationToken, 'Invalid verification token format') });
 const loginSchema = z.object({ email: z.string().trim().email().transform(canonicalEmail), password: passwordInput });
 const forgotPasswordSchema = z.object({ email: z.string().trim().email().transform(canonicalEmail) });
 const resetPasswordSchema = z.object({ token: z.string().refine(validPasswordResetToken, 'Invalid reset token format'), password: passwordInput });
@@ -87,6 +90,25 @@ authRouter.post('/register', async (req, res, next) => {
     // Registration is deliberately non-authenticating until verified email delivery
     // and one-time confirmation are implemented. Never issue a bearer credential here.
     return res.status(201).json({ message: 'Registration received. Email verification is required before sign-in.', user: publicUser(result.user, result.membership) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+authRouter.post('/verify-email', async (req, res, next) => {
+  try {
+    const parsed = verifyEmailSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: 'Invalid or expired verification token' });
+    const tokenHash = hashToken(parsed.data.token);
+    const record = await prisma.emailVerificationToken.findUnique({ where: { tokenHash } });
+    if (!record || record.usedAt || record.expiresAt <= new Date()) {
+      return res.status(400).json({ message: 'Invalid or expired verification token' });
+    }
+    const consumed = await prisma.$transaction((tx) =>
+      consumeEmailVerificationToken(tx, { id: record.id, userId: record.userId, now: new Date() }),
+    );
+    if (!consumed) return res.status(400).json({ message: 'Invalid or expired verification token' });
+    return res.json({ message: 'Email verified. You can now sign in.' });
   } catch (error) {
     return next(error);
   }
