@@ -36,3 +36,14 @@ test('invalid clock fails closed without database writes', async () => {
   };
   assert.equal(await consumeEmailVerificationToken(tx, { id: 't', userId: 'u', now: new Date(NaN) }), false);
 });
+
+
+test('missing token or user identifiers fail closed without writes', async () => {
+  const tx = {
+    emailVerificationToken: { updateMany: async () => { throw Error('unexpected token write'); } },
+    user: { updateMany: async () => { throw Error('unexpected user write'); } },
+  };
+  const now = new Date('2026-11-19T03:00:00Z');
+  assert.equal(await consumeEmailVerificationToken(tx, { id: '', userId: 'user-1', now }), false);
+  assert.equal(await consumeEmailVerificationToken(tx, { id: 'token-1', userId: '', now }), false);
+});
