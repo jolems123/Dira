@@ -116,6 +116,38 @@ authRouter.post('/register', async (req, res, next) => {
   }
 });
 
+
+const resendVerificationSchema = z.object({ email: z.string().trim().email().transform(canonicalEmail) });
+const resendVerificationResponse = { message: 'If this address needs verification, a message may be sent.' };
+
+authRouter.post('/resend-verification', async (req, res, next) => {
+  try {
+    const parsed = resendVerificationSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: 'Invalid email' });
+    const user = await prisma.user.findUnique({ where: { email: parsed.data.email }, select: { id: true, email: true, status: true, emailVerified: true } });
+    if (!user || user.status !== 'PENDING_VERIFICATION' || user.emailVerified) return res.json(resendVerificationResponse);
+    // The cooldown check runs inside the same PostgreSQL row lock as issuance.
+    const token = await issueEmailVerificationAtomically(prisma, user.id, new Date(), true);
+    if (!token) return res.json(resendVerificationResponse);
+    try {
+      await sendEmailVerificationEmail({
+        token, email: user.email, webOrigin: env.webOrigin,
+        apiKey: process.env.RESEND_API_KEY ?? '', from: process.env.DIRA_EMAIL_FROM ?? '',
+      });
+    } catch {
+      console.error('Verification resend delivery failed');
+      try {
+        await prisma.emailVerificationToken.deleteMany({ where: { userId: user.id, tokenHash: hashToken(token), usedAt: null } });
+      } catch {
+        console.error('Unable to revoke undelivered verification credential');
+      }
+    }
+    return res.json(resendVerificationResponse);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 authRouter.post('/verify-email', async (req, res, next) => {
   try {
     const parsed = verifyEmailSchema.safeParse(req.body);
