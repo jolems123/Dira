@@ -15,7 +15,8 @@ test('claims an unused unexpired credential and verifies its owner', async () =>
   const now = new Date('2026-11-19T03:00:00Z');
   assert.equal(await consumeEmailVerificationToken(tx, { id: 'token-1', userId: 'user-1', now }), true);
   assert.deepEqual(calls[0].where, { id: 'token-1', userId: 'user-1', usedAt: null, expiresAt: { gt: now } });
-  assert.deepEqual(calls[1].where, { id: 'user-1', emailVerified: false });
+  assert.deepEqual(calls[1].where, { id: 'user-1', emailVerified: false, status: 'PENDING_VERIFICATION' });
+  assert.deepEqual(calls[1].data, { emailVerified: true, status: 'ACTIVE' });
 });
 
 test('replayed or expired credentials cannot verify a user', async () => {
