@@ -1783,3 +1783,11 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - New head `748cc94` returned no pull-request workflow runs and no commit statuses; that is not a successful CI result. Do not trigger paid GitHub Actions. Obtain independent disposable-PostgreSQL verification.
 - Branch ancestry rechecked: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` identical to main. Neither deleted because no supported delete-ref action is exposed.
 - NEEDS ME: verified email sender/domain, account migration/recovery approval, independently executed test evidence, historical credential rotation, approved pricing/tax profiles, Railway/private S3 and legal sign-off. No supplier fund movement or live Paddle billing.
+
+
+## 2026-11-19 verification email sender work
+- Added regression specifications first (`f5818b2`) and a fail-closed Resend email-verification sender (`e264baf`) for HTTPS-only configured web origins, 64-character lowercase-hex credentials, one-hour instructions and provider failure handling.
+- **Not yet executed:** these tests are committed but have no passing local/CI evidence. The sender is not integrated into registration; no verification-token table/migration, issuance, resend or confirmation endpoint is yet established. Do not merge or deploy PR #3 as a functioning signup flow.
+- Latest inspected PR #3 head before these changes `7e5834a` was draft. Commit-specific PR workflow lookup returned no runs; repository workflow listing includes prior failed run `44269279647` (18 November 2026). Do not restart GitHub Actions while billing is unavailable.
+- Branch ancestry rechecked: `jolems123-patch-1` 0 ahead/10 behind and `uganda-currency` 0 ahead/0 behind `main`; ref deletion is not available through this connector.
+- **NEEDS ME (unchanged plus verification):** configure and validate Resend sender/domain, production HTTPS web origin and safe delivery/recovery policy for existing unverified users; rotate any historically exposed credentials; provide disposable PostgreSQL test execution, country tax/legal approval, final plan prices, private storage and Railway configuration. No live supplier payments or live subscription billing authorized.
