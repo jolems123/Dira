@@ -1854,3 +1854,10 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Rechecked branch ancestry: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` identical to main. Connector has no delete-ref action; neither branch deleted.
 - PR #3 and #4 remain draft/unmerged. No deployment, supplier payment movement, or live subscription billing.
 - **NEEDS ME:** independently execute API unit/integration tests and disposable-PostgreSQL migrations, recover actionable CI logs without paid GitHub Actions, review tenant isolation/approval limits, configure reliable verification email delivery and revocation failure monitoring; rotate historical credentials; approve jurisdiction tax profiles and subscription prices, Railway/S3/email/legal configuration. No live Paddle activation approved.
+
+## 2026-11-19 18:47 EAT — security and CI evidence review
+- Re-read security-branch README, positioning, tracker, open PRs #3/#4, authentication and verification source. Security head `7f3ea885e4ae8b2993a7dfe8fd4237d80d18d00c` and international finance PR #4 remain draft. Mergeability is not test evidence.
+- Actions run `44269279647` failed (job `134681509483`); returned job payload has no step details/log URL, so the cause remains unknown. No GitHub Actions rerun due to owner billing prohibition.
+- Registration, resend, transactional verification and password-reset session revocation exist in source, but executable disposable-PostgreSQL proof and delivery monitoring remain outstanding. Failed cleanup of an undelivered token can leave a usable credential until expiry.
+- Branch ancestry reconfirmed: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` identical to main. No supported delete-ref action; neither deleted.
+- **NEEDS ME:** offline/local security tests and disposable-PostgreSQL evidence, tenant isolation/approval review, verified sender/domain and alerting, historical secret rotation, approved country taxes/prices, Paddle sandbox, Railway/private S3 and legal acceptance. No merge, deployment, supplier transfers or live subscription billing.
