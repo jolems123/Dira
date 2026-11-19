@@ -1,4 +1,6 @@
 import { canonicalEmail } from '../lib/auth-email';
+import { issueEmailVerificationAtomically } from '../lib/email-verification-issue';
+import { sendEmailVerificationEmail } from '../lib/email-verification-email';
 import { validEmailVerificationToken } from '../lib/email-verification-token';
 import { consumeEmailVerificationToken } from '../lib/email-verification-consume';
 import { sendPasswordResetEmail } from '../lib/password-reset-email';
@@ -87,8 +89,27 @@ authRouter.post('/register', async (req, res, next) => {
       });
       return { user, membership };
     });
-    // Registration is deliberately non-authenticating until verified email delivery
-    // and one-time confirmation are implemented. Never issue a bearer credential here.
+    // Persist the one-time credential only after the account transaction commits.
+    // Registration must never return an authentication or verification bearer token.
+    const verificationToken = await issueEmailVerificationAtomically(prisma, result.user.id, new Date());
+    if (!verificationToken) throw new Error('Unable to issue verification credential');
+    try {
+      await sendEmailVerificationEmail({
+        token: verificationToken,
+        email: result.user.email,
+        webOrigin: env.webOrigin,
+        apiKey: process.env.RESEND_API_KEY ?? '',
+        from: process.env.DIRA_EMAIL_FROM ?? '',
+      });
+    } catch {
+      // A failed delivery must not leave a usable bearer credential behind.
+      // Keep the account pending so it cannot authenticate.
+      console.error('Registration verification email delivery failed');
+      await prisma.emailVerificationToken.deleteMany({
+        where: { userId: result.user.id, tokenHash: hashToken(verificationToken), usedAt: null },
+      });
+      return res.status(503).json({ message: 'Verification email could not be delivered. Please try again later.' });
+    }
     return res.status(201).json({ message: 'Registration received. Email verification is required before sign-in.', user: publicUser(result.user, result.membership) });
   } catch (error) {
     return next(error);
