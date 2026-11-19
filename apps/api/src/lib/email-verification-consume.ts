@@ -10,7 +10,7 @@ export async function consumeEmailVerificationToken(
   },
   input: { id: string; userId: string; now: Date },
 ): Promise<boolean> {
-  if (!Number.isFinite(input.now.getTime())) return false;
+  if (!input.id?.trim() || !input.userId?.trim() || !Number.isFinite(input.now.getTime())) return false;
   const claimed = await tx.emailVerificationToken.updateMany({
     where: { id: input.id, userId: input.userId, usedAt: null, expiresAt: { gt: input.now } },
     data: { usedAt: input.now },
