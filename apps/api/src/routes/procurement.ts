@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { z } from 'zod';
+import { nonnegativeMoney, positiveMoney } from '../lib/finite-financial-input';
 import { prisma } from '../db';
 import { AuthenticatedRequest, requireAuth, requireRole } from '../middleware/auth';
 import { claimPurchaseRequestDecision } from '../lib/approval-claim';
@@ -33,14 +34,14 @@ const requestSchema = z.object({
   department: z.string().min(2),
   currency: z.string().length(3).default('UGX'),
   requiredBy: z.string().datetime().optional(),
-  estimatedBudget: z.number().nonnegative().optional(),
+  estimatedBudget: nonnegativeMoney.optional(),
   items: z.array(z.object({
     name: z.string().min(1),
     description: z.string().optional(),
-    quantity: z.number().positive(),
+    quantity: positiveMoney,
     unit: z.string().optional(),
     categoryId: z.string().uuid().optional(),
-    estimatedUnitPrice: z.number().nonnegative().optional(),
+    estimatedUnitPrice: nonnegativeMoney.optional(),
     specifications: z.string().optional(),
   })).min(1),
 });
@@ -55,24 +56,24 @@ const createRfqSchema = z.object({
   description: z.string().optional(),
   quoteDeadline: z.string().datetime(),
   requiredBy: z.string().datetime().optional(),
-  budget: z.number().nonnegative().optional(),
+  budget: nonnegativeMoney.optional(),
   currency: z.string().length(3).default('UGX'),
   supplierIds: z.array(z.string().min(1)).min(1),
 });
 
 const submitQuotationSchema = z.object({
   currency: z.string().length(3).default('UGX'),
-  tax: z.number().nonnegative().optional(),
-  deliveryFee: z.number().nonnegative().default(0),
-  discount: z.number().nonnegative().default(0),
+  tax: nonnegativeMoney.optional(),
+  deliveryFee: nonnegativeMoney.default(0),
+  discount: nonnegativeMoney.default(0),
   deliveryDays: z.number().int().nonnegative().optional(),
   paymentTerms: z.string().max(200).optional(),
   validUntil: z.string().datetime().optional(),
   notes: z.string().max(3000).optional(),
   items: z.array(z.object({
     rfqItemId: z.string().min(1),
-    quantity: z.number().positive().optional(),
-    unitPrice: z.number().nonnegative(),
+    quantity: positiveMoney.optional(),
+    unitPrice: nonnegativeMoney,
     notes: z.string().max(1000).optional(),
   })).min(1),
 });
@@ -96,7 +97,7 @@ const dispatchSchema = z.object({
   attachmentKey: z.string().max(300).optional(),
   items: z.array(z.object({
     purchaseOrderItemId: z.string().min(1),
-    quantity: z.number().positive(),
+    quantity: positiveMoney,
   })).min(1).refine(hasUniqueOrderLineIds, { message: 'Duplicate purchase order item in dispatch' }),
 });
 
@@ -108,8 +109,8 @@ const goodsReceiptSchema = z.object({
   notes: z.string().max(1000).optional(),
   items: z.array(z.object({
     purchaseOrderItemId: z.string().min(1),
-    receivedQuantity: z.number().nonnegative(),
-    rejectedQuantity: z.number().nonnegative().default(0),
+    receivedQuantity: nonnegativeMoney,
+    rejectedQuantity: nonnegativeMoney.default(0),
     condition: z.string().max(200).optional(),
   })).min(1).refine(hasUniqueOrderLineIds, { message: 'Duplicate purchase order item in receipt' }).refine((items) => items.every(validReceiptQuantities), { message: 'Rejected quantity cannot exceed received quantity' }),
 });
@@ -120,12 +121,12 @@ const invoiceSchema = z.object({
   invoiceDate: z.string().datetime().optional(),
   dueDate: z.string().datetime().optional(),
   currency: z.string().length(3).optional(),
-  tax: z.number().nonnegative().optional(),
+  tax: nonnegativeMoney.optional(),
   items: z.array(z.object({
     purchaseOrderItemId: z.string().min(1).optional(),
     description: z.string().min(1),
-    quantity: z.number().positive(),
-    unitPrice: z.number().nonnegative(),
+    quantity: positiveMoney,
+    unitPrice: nonnegativeMoney,
   })).min(1).optional(),
   attachmentKey: z.string().max(300).optional(),
   attachmentUrl: z.string().url().optional(),
@@ -137,7 +138,7 @@ const decisionSchema = z.object({
 });
 
 const paymentSchema = z.object({
-  amount: z.number().positive().optional(),
+  amount: positiveMoney.optional(),
   currency: z.string().length(3).optional(),
   paymentDate: z.string().datetime().optional(),
   paymentMethod: z.enum(['BANK_TRANSFER', 'CASH', 'CHEQUE', 'MOBILE_MONEY', 'CARD', 'OTHER']),
