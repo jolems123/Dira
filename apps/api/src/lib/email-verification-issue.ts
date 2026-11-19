@@ -13,6 +13,7 @@ export async function issueEmailVerificationAtomically(
   now: Date,
   cooldown = false,
 ): Promise<string | null> {
+  if (!userId || !userId.trim()) throw new Error('Invalid account identifier');
   if (!Number.isFinite(now.getTime())) throw new Error('Invalid issuance time');
   return db.$transaction(async (tx) => {
     const locked = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
