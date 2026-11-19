@@ -141,6 +141,7 @@ model User {
   organizationMembers OrganizationMember[]
   refreshTokens     RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
   auditLogs         AuditLog[]
   sentMessages      Message[]
   uploadedDocuments Document[] @relation("DocumentUploader")
@@ -715,4 +716,17 @@ model Attachment {
   size       Int
   storageKey String
   createdAt  DateTime @default(now())
+}
+
+/// One-time email ownership proof; never persist plaintext bearer credentials.
+model EmailVerificationToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }
