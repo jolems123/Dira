@@ -1776,3 +1776,10 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Branch ancestry freshly checked: `jolems123-patch-1` 0 ahead/10 behind main; `uganda-currency` identical. Connector has no delete-ref capability.
 - GitHub Actions billing/runner problem remains; do not trigger paid Actions. Independent disposable-PostgreSQL execution and security review required before any merge.
 - **NEEDS ME:** verified email sender/domain, legacy-unverified-account recovery policy, historical credential rotation, disposable PostgreSQL runner, reviewed tax rules, approved subscription prices/Paddle sandbox, Railway/S3/privacy/legal acceptance. No supplier payments or live subscription billing.
+
+## 2026-11-19 registration credential containment
+- Added regression tests first (`9644d95`) asserting registration remains pending and issues no access/refresh tokens; changed registration (`748cc94`) to persist `PENDING_VERIFICATION` and return a non-authenticating response. **Tests have not been executed; no pass claimed.**
+- This intentionally prevents unverified registration sessions, but the email delivery/verification endpoints, persisted one-use credentials, resend limits and existing-account recovery remain **CRITICAL OPEN**. New registrants cannot sign in until the complete verification workflow ships; do not deploy or merge this isolated change.
+- New head `748cc94` returned no pull-request workflow runs and no commit statuses; that is not a successful CI result. Do not trigger paid GitHub Actions. Obtain independent disposable-PostgreSQL verification.
+- Branch ancestry rechecked: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` identical to main. Neither deleted because no supported delete-ref action is exposed.
+- NEEDS ME: verified email sender/domain, account migration/recovery approval, independently executed test evidence, historical credential rotation, approved pricing/tax profiles, Railway/private S3 and legal sign-off. No supplier fund movement or live Paddle billing.
