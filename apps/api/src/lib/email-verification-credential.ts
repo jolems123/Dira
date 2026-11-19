@@ -11,5 +11,5 @@ export function createEmailVerificationCredential(now: Date = new Date()) {
 
 /** The caller must also atomically mark a credential consumed in persistent storage. */
 export function isEmailVerificationCredentialCurrent(expiresAt: Date, usedAt: Date | null, now: Date = new Date()) {
-  return usedAt === null && expiresAt.getTime() > now.getTime();
+  return usedAt === null && Number.isFinite(expiresAt.getTime()) && Number.isFinite(now.getTime()) && expiresAt.getTime() > now.getTime();
 }
