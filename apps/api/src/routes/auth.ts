@@ -1,6 +1,7 @@
 import { canonicalEmail } from '../lib/auth-email';
 import { issueEmailVerificationAtomically } from '../lib/email-verification-issue';
 import { revokeUndeliveredVerificationToken } from '../lib/email-verification-revoke';
+import { safelyRevokeUndeliveredVerification } from '../lib/email-verification-safe-revoke';
 import { sendEmailVerificationEmail } from '../lib/email-verification-email';
 import { validEmailVerificationToken } from '../lib/email-verification-token';
 import { consumeEmailVerificationToken } from '../lib/email-verification-consume';
@@ -106,7 +107,7 @@ authRouter.post('/register', async (req, res, next) => {
       // A failed delivery must not leave a usable bearer credential behind.
       // Keep the account pending so it cannot authenticate.
       console.error('Registration verification email delivery failed');
-      await revokeUndeliveredVerificationToken(prisma, result.user.id, hashToken(verificationToken), new Date());
+      await safelyRevokeUndeliveredVerification((userId, tokenHash) => revokeUndeliveredVerificationToken(prisma, userId, tokenHash, new Date()), result.user.id, hashToken(verificationToken));
       return res.status(503).json({ message: 'Verification email could not be delivered. Please try again later.' });
     }
     return res.status(201).json({ message: 'Registration received. Email verification is required before sign-in.', user: publicUser(result.user, result.membership) });
@@ -135,11 +136,7 @@ authRouter.post('/resend-verification', async (req, res, next) => {
       });
     } catch {
       console.error('Verification resend delivery failed');
-      try {
-        await revokeUndeliveredVerificationToken(prisma, user.id, hashToken(token), new Date());
-      } catch {
-        console.error('Unable to revoke undelivered verification credential');
-      }
+      await safelyRevokeUndeliveredVerification((userId, tokenHash) => revokeUndeliveredVerificationToken(prisma, userId, tokenHash, new Date()), user.id, hashToken(token));
     }
     return res.json(resendVerificationResponse);
   } catch (error) {
