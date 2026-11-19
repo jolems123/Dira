@@ -10,6 +10,10 @@ export async function safelyRevokeUndeliveredVerification(
   tokenHash: string,
   warn: (message: string) => void = console.error,
 ): Promise<boolean> {
+  if (!userId?.trim() || !/^[a-f0-9]{64}$/.test(tokenHash)) {
+    warn('Unable to revoke undelivered verification credential');
+    return false;
+  }
   try {
     if (await revoke(userId, tokenHash)) return true;
   } catch {
