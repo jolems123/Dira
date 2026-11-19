@@ -1769,3 +1769,10 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Registration still issues credentials before email verification. Do not merge/deploy isolated verification guards without complete token persistence, email delivery, atomic consumption, resend, recovery, and existing-account migration.
 - NEEDS ME: approved sender/domain and delivery proof; existing-unverified-account migration/recovery policy; historical credential rotation; executable disposable-PostgreSQL test evidence; final prices, jurisdiction-reviewed tax rules, Railway/private storage and privacy/legal acceptance.
 - No GitHub Actions runs intentionally triggered, no merges, no live supplier payments or subscription billing.
+
+## 2026-11-19 06:40 EAT — transactional email verification claim groundwork
+- Read README, POSITIONING, tracker, open PRs #3/#4 and authentication/schema. Registration still issues access/refresh tokens before verification. Critical workflow remains OPEN.
+- Tests-first commit `bbc9459` specifies an atomic single-use claim, replay rejection and invalid-clock fail-closed behavior; implementation commit `515156a` adds a transaction-scoped helper. **Tests NOT EXECUTED**; helper is not wired into an endpoint, and the emailVerificationToken Prisma model/migration does not exist yet. No claim of a completed verification workflow.
+- Branch ancestry freshly checked: `jolems123-patch-1` 0 ahead/10 behind main; `uganda-currency` identical. Connector has no delete-ref capability.
+- GitHub Actions billing/runner problem remains; do not trigger paid Actions. Independent disposable-PostgreSQL execution and security review required before any merge.
+- **NEEDS ME:** verified email sender/domain, legacy-unverified-account recovery policy, historical credential rotation, disposable PostgreSQL runner, reviewed tax rules, approved subscription prices/Paddle sandbox, Railway/S3/privacy/legal acceptance. No supplier payments or live subscription billing.
