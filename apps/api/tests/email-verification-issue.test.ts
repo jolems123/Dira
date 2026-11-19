@@ -34,6 +34,12 @@ describe('email verification issuance', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  it('rejects blank account identifiers without opening a transaction', async () => {
+    const transaction = vi.fn();
+    await expect(issueEmailVerificationAtomically({ $transaction: transaction } as any, '  ', new Date())).rejects.toThrow('Invalid account identifier');
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
   it('rejects invalid time before any database write', async () => {
     const transaction = vi.fn();
     await expect(issueEmailVerificationAtomically({ $transaction: transaction } as any, 'u', new Date(NaN))).rejects.toThrow('Invalid issuance time');
