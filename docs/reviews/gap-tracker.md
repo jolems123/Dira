@@ -2058,3 +2058,11 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Branch compare against `main`: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` 0 ahead/0 behind. Connector exposes no delete-branch operation; no deletion performed.
 - NEEDS ME: independent runner/disposable DB and reproducible test results; historical credential rotation; jurisdiction-reviewed tax profiles; approved subscription prices; Paddle sandbox credentials; Railway/private S3/email and legal/privacy signoff. No live subscription billing or supplier disbursement authorized.
 - This checkpoint makes no claim of passing tests, merged PRs or deployment. All five phases remain incomplete.
+
+## 2026-11-20 verification recheck (23:41 Africa/Kampala)
+- Directly fetched README.md, docs/POSITIONING.md, this tracker, PR #3 and PR #4. Both PRs are open, draft, and GitHub reports mergeable; mergeability is **not** test evidence. Neither was merged.
+- Historical workflow run `44269279647` still reports job `134681509483` completed/failure. Job step summary returned []; no actionable failing command is established. No GitHub-hosted runs were started, honoring the no-paid-CI requirement.
+- Inspected `scripts/verify.sh`: it explicitly requires `CI_DATABASE_URL`, `CI_DATABASE_IS_DISPOSABLE=yes`, a local/postgres host and a database name ending `_ci` or `_test` before applying Prisma migrations. This is a safety guard, **not** proof that the script has run or that tenant-isolation/approval tests pass.
+- Inspected document-response sanitization and committed regression tests; implementation and tests exist, but independent execution evidence remains missing.
+- Branch comparisons: `jolems123-patch-1` 0 ahead/10 behind main; `uganda-currency` identical to main. No branch deletion action exposed; left unchanged.
+- NEEDS ME: provide an isolated disposable PostgreSQL runner for `scripts/verify.sh`, review/rotate any historical credentials, approve country-specific tax treatment and subscription pricing, configure Paddle **sandbox** and Railway/private S3/email, and obtain privacy/legal acceptance. No supplier disbursement or live subscription billing permitted.
