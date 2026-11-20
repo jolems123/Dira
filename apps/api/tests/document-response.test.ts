@@ -57,4 +57,7 @@ describe('document response filename safety', () => {
   it('removes invisible format and interlinear annotation controls from filenames', () => {
     expect(safeAttachmentName('invoice\u00ad\u034f\u180e\ufff9\ufffa\ufffb.pdf')).toBe('invoice.pdf');
   });
+  it('removes deprecated Unicode directional controls that can disguise extensions', () => {
+    expect(safeAttachmentName('invoice\\u206A\\u206B\\u206C\\u206D\\u206E\\u206F.pdf')).toBe('invoice.pdf');
+  });
 });
