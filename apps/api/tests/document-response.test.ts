@@ -54,4 +54,7 @@ describe('document response filename safety', () => {
       expect(safeAttachmentName(name)).toBe('_' + name);
     }
   });
+  it('removes invisible format and interlinear annotation controls from filenames', () => {
+    expect(safeAttachmentName('invoice\u00ad\u034f\u180e\ufff9\ufffa\ufffb.pdf')).toBe('invoice.pdf');
+  });
 });
