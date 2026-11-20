@@ -193,7 +193,9 @@ export function invoiceableLines(input: {
         const rawReceived = num(item.receivedQuantity);
         const rawRejected = num(item.rejectedQuantity);
         const validReceipt = item.receivedQuantity !== null && item.receivedQuantity !== undefined
+          && !(typeof item.receivedQuantity === 'string' && item.receivedQuantity.trim() === '')
           && item.rejectedQuantity !== null && item.rejectedQuantity !== undefined
+          && !(typeof item.rejectedQuantity === 'string' && item.rejectedQuantity.trim() === '')
           && Number.isFinite(rawReceived) && Number.isFinite(rawRejected)
           && rawReceived >= 0 && rawRejected >= 0 && rawRejected <= rawReceived;
         // A malformed receipt is evidence of an attempted receipt, not absence of one.
@@ -209,6 +211,7 @@ export function invoiceableLines(input: {
         // the PO line even if another dispatch entry is valid, pending audit.
         const rawDispatched = num(item.orderedQuantity);
         if (item.orderedQuantity === null || item.orderedQuantity === undefined
+          || (typeof item.orderedQuantity === 'string' && item.orderedQuantity.trim() === '')
           || !Number.isFinite(rawDispatched) || rawDispatched < 0) {
           invalidDispatchLines.add(item.purchaseOrderItemId);
         } else {
