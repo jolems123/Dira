@@ -60,4 +60,8 @@ describe('document response filename safety', () => {
   it('removes deprecated Unicode directional controls that can disguise extensions', () => {
     expect(safeAttachmentName('invoice\u206A\u206B\u206C\u206D\u206E\u206F.pdf')).toBe('invoice.pdf');
   });
+  it('strips invisible variation selectors and Unicode tag characters from download names', () => {
+    expect(safeAttachmentName('invoice\uFE0F\u{E0100}\u{E0001}\u{E0061}.pdf')).toBe('invoice.pdf');
+  });
+
 });
