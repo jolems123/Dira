@@ -32,11 +32,12 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Refresh sessions presently have no durable per-device session-family identifier; replay handling revokes all user refresh credentials. Stronger per-session isolation is future work.
 - Required auth cross-tenant/route tests, PO approval-limit rules, uploads and scan evidence remain unverified.
 
-## Latest CI recheck
-- PR #3 head `d37f8f2d7ecef079137fd36db816673a70a9fc1f`: GitHub Actions run `42516234541` (`Dira checks`), job `128839747454`, **queued**, no completed steps or test evidence at last check.
-- PR remains DRAFT and GitHub reports mergeability state `unstable`. Do not merge until required checks pass and security-critical open items are addressed.
-- Branch deletion requires a GitHub ref-deletion capability not exposed in the current connector; ordinary Git CLI in this execution environment cannot resolve github.com.
-- Owner has now authorized merging verified completed phases, notwithstanding earlier no-merge instruction. No merge has occurred.
+## Latest CI recheck (2026-11-20)
+- Historical GitHub Actions run `44269279647` reports `checks` job `134681509483` as completed/failure, but `steps=null` and `logs_url=null`. **No test failure cause is established.** GitHub-hosted CI must not be rerun while billing is unavailable.
+- Independent verification remains required: `scripts/verify.sh` with a dedicated disposable PostgreSQL database, TypeScript, unit/integration tests, tenant isolation, approval enforcement, dependency audit, and production build. No passing execution evidence was obtained in this recheck.
+- PR #3 and PR #4 require direct review/status verification before merge; issue-search returned no open PR records in this run and is not sufficient evidence that either closed. Do not merge draft/unverified changes.
+- Branch ancestry freshly confirmed: `jolems123-patch-1` 0 ahead / 10 behind `main`; `uganda-currency` identical to `main`. No supported GitHub branch-delete action was found, so neither was deleted.
+- NEEDS ME: independent runner/disposable DB; historical credential rotation; jurisdiction-reviewed tax rules; owner-approved plan prices; Paddle **sandbox** configuration; Railway/private S3/email; legal/privacy acceptance. Live billing and supplier disbursement remain prohibited.
 
 ## 2026-11-09 engineering run
 - Security commits `daa088b` and `7efbcdc`: reject missing or mismatched upload payload bytes, spoofed WebP signatures, and binary-null CSV uploads; six unit regression cases added in `apps/api/tests/upload-validation.test.ts`. These are **committed, not yet verified by CI**. Note that ZIP-based DOCX/XLSX still need archive structure inspection and malware scanning policy.
