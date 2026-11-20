@@ -396,6 +396,11 @@ export interface ThreeWayMatchResult {
   };
 }
 
+/** Blank persisted numeric strings are missing evidence, never numeric zero. */
+function isBlankNumericEvidence(value: Decimalish): boolean {
+  return typeof value === 'string' && value.trim() === '';
+}
+
 export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchResult {
   const exceptions: MatchException[] = [];
   const requireReceipt = input.requireReceipt ?? true;
@@ -416,8 +421,8 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   for (const item of input.receiptItems) {
     const received = num(item.receivedQuantity);
     const rejected = num(item.rejectedQuantity);
-    const valid = item.receivedQuantity !== null && item.receivedQuantity !== undefined
-      && item.rejectedQuantity !== null && item.rejectedQuantity !== undefined
+    const valid = item.receivedQuantity !== null && item.receivedQuantity !== undefined && !isBlankNumericEvidence(item.receivedQuantity)
+      && item.rejectedQuantity !== null && item.rejectedQuantity !== undefined && !isBlankNumericEvidence(item.rejectedQuantity)
       && Number.isFinite(received) && Number.isFinite(rejected)
       && received >= 0 && rejected >= 0 && rejected <= received;
     if (!valid) {
@@ -462,6 +467,7 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
     const quantity = num(item.quantity);
     const price = num(item.unitPrice);
     if (item.quantity === null || item.quantity === undefined || item.unitPrice === null || item.unitPrice === undefined
+      || isBlankNumericEvidence(item.quantity) || isBlankNumericEvidence(item.unitPrice)
       || !Number.isFinite(quantity) || quantity < 0 || !Number.isFinite(price) || price < 0) {
       exceptions.push({
         code: 'INVALID_INVOICE_QUANTITY',
@@ -563,7 +569,7 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   const lines = input.purchaseOrder.items.map((poItem) => {
     const rawOrdered = num(poItem.quantity);
     const rawUnitPrice = num(poItem.unitPrice);
-    if (poItem.quantity === null || poItem.quantity === undefined || poItem.unitPrice === null || poItem.unitPrice === undefined || !Number.isFinite(rawOrdered) || rawOrdered < 0 || !Number.isFinite(rawUnitPrice) || rawUnitPrice < 0) {
+    if (poItem.quantity === null || poItem.quantity === undefined || poItem.unitPrice === null || poItem.unitPrice === undefined || isBlankNumericEvidence(poItem.quantity) || isBlankNumericEvidence(poItem.unitPrice) || !Number.isFinite(rawOrdered) || rawOrdered < 0 || !Number.isFinite(rawUnitPrice) || rawUnitPrice < 0) {
       exceptions.push({
         code: 'INVALID_PO_LINE',
         severity: 'BLOCKING',
@@ -640,10 +646,10 @@ export function evaluateThreeWayMatch(input: ThreeWayMatchInput): ThreeWayMatchR
   const rawInvoiceTotal = num(input.invoice.total);
   const rawSubtotal = num(input.invoice.subtotal);
   const rawTax = num(input.invoice.tax);
-  if (input.purchaseOrder.total === null || input.purchaseOrder.total === undefined || !Number.isFinite(rawPoTotal) || rawPoTotal < 0) {
+  if (input.purchaseOrder.total === null || input.purchaseOrder.total === undefined || isBlankNumericEvidence(input.purchaseOrder.total) || !Number.isFinite(rawPoTotal) || rawPoTotal < 0) {
     exceptions.push({ code: 'INVALID_PO_TOTAL', severity: 'BLOCKING', message: 'Purchase order total is invalid' });
   }
-  if ([input.invoice.total, input.invoice.subtotal, input.invoice.tax].some((value) => value === null || value === undefined) || [rawInvoiceTotal, rawSubtotal, rawTax].some((value) => !Number.isFinite(value) || value < 0)) {
+  if ([input.invoice.total, input.invoice.subtotal, input.invoice.tax].some((value) => value === null || value === undefined || isBlankNumericEvidence(value)) || [rawInvoiceTotal, rawSubtotal, rawTax].some((value) => !Number.isFinite(value) || value < 0)) {
     exceptions.push({ code: 'INVALID_INVOICE_TOTAL', severity: 'BLOCKING', message: 'Invoice totals or tax are invalid' });
   }
   const poTotal = Number.isFinite(rawPoTotal) && rawPoTotal >= 0 ? rawPoTotal : 0;
