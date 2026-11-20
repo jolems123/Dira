@@ -2049,3 +2049,12 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Historical workflow run `44269279647` still reports `checks` job `134681509483` completed/failure with `steps=null`, `logs_url=null`. No paid Actions started and no test failure root cause established.
 - Fresh ancestry: `jolems123-patch-1` 0 ahead/10 behind `main`, `uganda-currency` identical to `main`. Neither deleted; no supported branch-deletion action exposed.
 - NEEDS ME unchanged: independent disposable PostgreSQL runner and security verification, historical credential rotation, approved country tax profiles and plan prices, Paddle sandbox, Railway/private storage/email, privacy/legal acceptance. Supplier payments remain records only; live subscription billing not authorized.
+
+## 2026-11-20 22:48 EAT verification checkpoint
+- Direct PR fetch: security PR #3 and international-finance PR #4 are **open, draft, mergeable=true**. Mergeability is not evidence of tests or review approval; neither is ready to merge.
+- GitHub Actions run `44269279647` job `134681509483` remains `completed/failure`, with `steps=null` and `logs_url=null`; no actionable application failure can be inferred. **Do not rerun GitHub-hosted Actions while billing is disabled.**
+- Source inspection: `apps/api/src/lib/procurement-rules.ts` still calculates with fixed `UGANDA_VAT_RATE=0.18` and two-decimal `moneyDecimal`; phase-2 international-finance helpers are not integrated into this existing route-level arithmetic. Do not advertise global tax compliance.
+- Security source and tests inspected: `safeAttachmentName` has Unicode and Windows device-name hardening with committed regression tests; these are not execution evidence. Independently run `scripts/verify.sh` with an isolated disposable PostgreSQL before declaring the security phase verified.
+- Branch compare against `main`: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` 0 ahead/0 behind. Connector exposes no delete-branch operation; no deletion performed.
+- NEEDS ME: independent runner/disposable DB and reproducible test results; historical credential rotation; jurisdiction-reviewed tax profiles; approved subscription prices; Paddle sandbox credentials; Railway/private S3/email and legal/privacy signoff. No live subscription billing or supplier disbursement authorized.
+- This checkpoint makes no claim of passing tests, merged PRs or deployment. All five phases remain incomplete.
