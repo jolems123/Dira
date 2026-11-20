@@ -2,8 +2,27 @@ import { describe, expect, it } from 'vitest';
 import { safeAttachmentName } from '../src/lib/document-response';
 
 describe('document response filename safety', () => {
-  it('removes actual CRLF header injection and delimiters', () => {
-    expect(safeAttachmentName('invoice\uFE0F\u{E0100}\u{E0001}\u{E0061}.pdf')).toBe('invoice.pdf');
+  it('strips header injection, path separators and control bytes', () => {
+    expect(safeAttachmentName('report\r\nX-Injected: yes.pdf')).toBe('report_X-Injected_ yes.pdf');
+    expect(safeAttachmentName('../secret\\invoice.pdf')).toBe('secret_invoice.pdf');
+    expect(safeAttachmentName('a\0b.pdf')).toBe('a_b.pdf');
   });
 
+  it('removes Unicode direction, format, tag and variation controls', () => {
+    expect(safeAttachmentName('invoice\u202Efdp.exe')).toBe('invoicefdp.exe');
+    expect(safeAttachmentName('invoice\u206A\u206F.pdf')).toBe('invoice.pdf');
+    expect(safeAttachmentName('invoice\uFE0F\u{E0100}\u{E0001}\u{E0061}.pdf')).toBe('invoice.pdf');
+    expect(safeAttachmentName('in\u00AD\u034F\u180Evoice.pdf')).toBe('invoice.pdf');
+  });
+
+  it('prevents Windows device names and empty filenames', () => {
+    expect(safeAttachmentName('CON.txt')).toBe('_CON.txt');
+    expect(safeAttachmentName('LPT1.pdf')).toBe('_LPT1.pdf');
+    expect(safeAttachmentName('...')).toBe('document');
+  });
+
+  it('removes trailing dot after truncation', () => {
+    expect(safeAttachmentName('a'.repeat(179) + '.pdf')).toBe('a'.repeat(179));
+    expect(safeAttachmentName('x'.repeat(200))).toHaveLength(180);
+  });
 });
