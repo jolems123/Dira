@@ -15,6 +15,13 @@ describe('document response filename safety', () => {
     expect(safeAttachmentName('in\u00AD\u034F\u180Evoice.pdf')).toBe('invoice.pdf');
   });
 
+  it('neutralizes Unicode lookalike path separators', () => {
+    expect(safeAttachmentName('folder\u2215invoice.pdf')).toBe('folder_invoice.pdf');
+    expect(safeAttachmentName('folder\u2044invoice.pdf')).toBe('folder_invoice.pdf');
+    expect(safeAttachmentName('folder\uFF0Finvoice.pdf')).toBe('folder_invoice.pdf');
+    expect(safeAttachmentName('folder\uFF3Cinvoice.pdf')).toBe('folder_invoice.pdf');
+  });
+
   it('prevents Windows device names and empty filenames', () => {
     expect(safeAttachmentName('CON.txt')).toBe('_CON.txt');
     expect(safeAttachmentName('LPT1.pdf')).toBe('_LPT1.pdf');
