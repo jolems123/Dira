@@ -67,4 +67,9 @@ describe('document response filename safety', () => {
     expect(safeAttachmentName('report😀.pdf')).toBe('report😀.pdf');
   });
 
+  it('neutralizes mathematical solidus lookalikes in download names', () => {
+    expect(safeAttachmentName('folder\u29F8invoice.pdf')).toBe('folder_invoice.pdf');
+    expect(safeAttachmentName('folder\u29F9invoice.pdf')).toBe('folder_invoice.pdf');
+  });
+
 });
