@@ -28,6 +28,12 @@ describe('document response filename safety', () => {
     expect(safeAttachmentName('invoice\uFE52html')).toBe('invoice_html');
   });
 
+  it('normalizes compatibility glyphs before checking paths and reserved names', () => {
+    expect(safeAttachmentName('ＣＯＮ.txt')).toBe('_CON.txt');
+    expect(safeAttachmentName('folder／invoice.pdf')).toBe('folder_invoice.pdf');
+    expect(safeAttachmentName('report．exe')).toBe('report_exe');
+  });
+
   it('prevents Windows device names and empty filenames', () => {
     expect(safeAttachmentName('CON.txt')).toBe('_CON.txt');
     expect(safeAttachmentName('LPT1.pdf')).toBe('_LPT1.pdf');
