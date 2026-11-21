@@ -55,4 +55,10 @@ describe('document response filename safety', () => {
     expect(Buffer.byteLength(result, 'utf8')).toBeLessThanOrEqual(255);
     expect(result).not.toContain('\uFFFD');
   });
+  it('removes unpaired UTF-16 surrogates from response filenames', () => {
+    expect(safeAttachmentName('report\\uD800.pdf')).toBe('report.pdf');
+    expect(safeAttachmentName('report\\uDC00.pdf')).toBe('report.pdf');
+    expect(safeAttachmentName('report😀.pdf')).toBe('report😀.pdf');
+  });
+
 });
