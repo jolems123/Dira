@@ -38,4 +38,11 @@ describe('document response filename safety', () => {
     expect(safeAttachmentName('a'.repeat(179) + '.pdf')).toBe('a'.repeat(179));
     expect(safeAttachmentName('x'.repeat(200))).toHaveLength(180);
   });
+  it('does not split a Unicode surrogate pair at the filename length boundary', () => {
+    const result = safeAttachmentName('a'.repeat(179) + '😀' + '.pdf');
+    expect(result).toBe('a'.repeat(179) + '😀');
+    expect(result).not.toContain('\uFFFD');
+    expect(Array.from(result)).toHaveLength(180);
+  });
+
 });
