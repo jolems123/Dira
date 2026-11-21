@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { prisma } from '../src/db';
-import { BASE, api, auth, expectOk, isoDays, registerOrg, setRole, unique } from './helpers';
+import { BASE, api, auth, expectOk, isoDays, registerOrg, registerApprover, setRole, unique } from './helpers';
 import { runLifecycle } from './lifecycle.test';
 
 describe('negative and isolation cases', () => {
@@ -91,7 +91,8 @@ describe('negative and isolation cases', () => {
       items: [{ name: 'Widget', quantity: 5, estimatedUnitPrice: 100 }],
     }), 'request');
     await api().post(`${BASE}/purchase-requests/${request.id}/submit`).set(auth(buyer)).send({});
-    await api().post(`${BASE}/purchase-requests/${request.id}/approve`).set(auth(buyer)).send({});
+    const approver = await registerApprover(buyer);
+    expectOk(await api().post(`${BASE}/purchase-requests/${request.id}/approve`).set(auth(approver)).send({}), 'approve request');
     const rfq = expectOk(await api().post(`${BASE}/rfqs`).set(auth(buyer)).send({
       purchaseRequestId: request.id, quoteDeadline: isoDays(5), currency: 'UGX', supplierIds: [supplier.organizationId],
     }), 'rfq');

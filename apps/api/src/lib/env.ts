@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as dotenv from 'dotenv';
+import { validateProductionEnvironment } from './env-validation';
 
 /**
  * The API runs from apps/api but the canonical .env lives at the monorepo root,
@@ -18,11 +19,12 @@ function loadEnvFiles() {
 }
 
 loadEnvFiles();
+validateProductionEnvironment(process.env);
 
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   port: Number(process.env.PORT ?? 4000),
-  databaseUrl: process.env.DATABASE_URL ?? 'postgresql://postgres:Kampala2020%40%26@localhost:5432/dira_db?schema=public',
+  databaseUrl: process.env.DATABASE_URL ?? 'postgresql://localhost:5432/dira_db?schema=public',
   jwtAccessSecret: process.env.JWT_ACCESS_SECRET ?? 'local-secret',
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET ?? 'local-refresh-secret',
   webOrigin: process.env.WEB_ORIGIN ?? 'http://localhost:3000',

@@ -1,0 +1,33 @@
+import { describe, expect, it } from 'vitest';
+import { mayRefreshSession } from '../src/lib/refresh-eligibility';
+
+describe('refresh session eligibility', () => {
+  it('rejects deleted or inactive users', () => {
+    expect(mayRefreshSession(null)).toBe(false);
+    expect(mayRefreshSession({ status: 'SUSPENDED', organizationMembers: [{ id: 'member' }] })).toBe(false);
+  });
+  it('rejects an active user whose memberships have all been revoked', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [] })).toBe(false);
+  });
+  it('rejects ambiguous active organisation memberships', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{ id: 'first' }, { id: 'second' }] })).toBe(false);
+  });
+  it('rejects a missing membership list rather than crashing', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: undefined } as never)).toBe(false);
+  });
+  it('rejects malformed or blank membership identifiers', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{}] } as never)).toBe(false);
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{ id: '' }] })).toBe(false);
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{ id: '   ' }] })).toBe(false);
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [null] } as never)).toBe(false);
+  });
+  it('rejects unverified accounts even when active and assigned', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', emailVerified: false, organizationMembers: [{ id: 'member' }] })).toBe(false);
+  });
+  it('rejects a missing verification flag', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', organizationMembers: [{ id: 'member' }] } as never)).toBe(false);
+  });
+  it('permits an active verified account with an active membership', () => {
+    expect(mayRefreshSession({ status: 'ACTIVE', emailVerified: true, organizationMembers: [{ id: 'member' }] })).toBe(true);
+  });
+});
