@@ -2125,3 +2125,10 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Historical Actions run `44269279647` job `134681509483` remains completed/failure with null steps/log URL. No GitHub-hosted CI rerun (billing prohibition). Failure cause unknown.
 - Fresh ancestry: `jolems123-patch-1` 0 ahead / 10 behind main; `uganda-currency` identical to main. Neither deleted: no supported branch deletion action.
 - **NEEDS ME:** independent disposable PostgreSQL verification and security/approval/tenant tests; historical secret rotation; jurisdiction-reviewed tax rules; approved subscription prices; Paddle sandbox-only configuration; Railway/private S3/email; privacy/legal acceptance. No PR merged or deployed. No supplier fund movement or live subscription billing authorized. All five phases remain incomplete.
+
+
+## 2026-11-21 attachment filename code-point boundary fix
+- Added a regression test first in commit `3e703e2`, followed by Unicode-aware truncation in `400b54b`. A UTF-16 `.slice(0, 180)` could split an emoji surrogate pair at the boundary; truncation now uses Unicode code points. This is committed but **not executed or verified**.
+- Re-read README, positioning, tracker and searched open PRs: PR #3 and PR #4 remain outstanding; no merge performed. Historical Actions run `44269279647` still shows failed job `134681509483` with no steps/log URL; no paid CI was initiated.
+- Fresh branch comparisons: `jolems123-patch-1` 0 ahead / 10 behind; `uganda-currency` identical to main. Neither deleted: branch-delete action unavailable.
+- NEEDS ME: disposable isolated PostgreSQL runner for actual test execution, tenant/approval security verification, rotation of any historical secrets, jurisdiction-approved tax rules, owner-approved plan prices, Paddle sandbox credentials, Railway/private S3/email and legal/privacy acceptance. No live billing or supplier fund movement authorized.
