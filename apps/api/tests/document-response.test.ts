@@ -22,6 +22,12 @@ describe('document response filename safety', () => {
     expect(safeAttachmentName('folder\uFF3Cinvoice.pdf')).toBe('folder_invoice.pdf');
   });
 
+  it('neutralizes Unicode dot lookalikes in download names', () => {
+    expect(safeAttachmentName('invoice\u2024pdf')).toBe('invoice_pdf');
+    expect(safeAttachmentName('invoice\uFF0Eexe')).toBe('invoice_exe');
+    expect(safeAttachmentName('invoice\uFE52html')).toBe('invoice_html');
+  });
+
   it('prevents Windows device names and empty filenames', () => {
     expect(safeAttachmentName('CON.txt')).toBe('_CON.txt');
     expect(safeAttachmentName('LPT1.pdf')).toBe('_LPT1.pdf');
