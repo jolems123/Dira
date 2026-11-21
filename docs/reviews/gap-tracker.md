@@ -2088,3 +2088,12 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Rechecked GitHub Actions run `44269279647`: job `134681509483` still reports completed/failure with null steps/log URL. No GitHub-hosted CI started, per owner's cost restriction.
 - Fresh ancestry checks: `jolems123-patch-1` 0 ahead/10 behind `main`; `uganda-currency` 0 ahead/0 behind. No branch deletion performed without supported delete action.
 - **NEEDS ME:** offline test runner and disposable PostgreSQL for `scripts/verify.sh`, full tenant/approval verification, historical secret rotation, reviewed country tax profiles, final owner-approved plan prices, Paddle sandbox, Railway/private S3/email and privacy/legal acceptance. Do not merge unverified draft PRs or enable live subscriptions or supplier disbursements.
+
+## 2026-11-21 verification recheck
+- Read `README.md` on `main`, `docs/POSITIONING.md`, this tracker, and `scripts/verify.sh` on `fix/dira-security`; inspected filename sanitizer and its four Vitest cases. No successful execution evidence exists for those tests in this run.
+- Historical Actions run `44269279647` still reports `checks` job `134681509483` completed/failure; job-steps API returns `[]`, so the failing command remains unknown. Do **not** rerun paid GitHub Actions while billing is unavailable.
+- GitHub issue/PR search (`repo:jolems123/Dira is:pr is:open`) returned zero results; this is not proof that PR #3 or #4 closed or merged. Verify PR state directly before merge.
+- Compare API: `jolems123-patch-1` is 0 ahead / 10 behind `main`; `uganda-currency` is identical to `main`. No supported branch deletion action was available; neither was deleted.
+- `scripts/verify.sh` checks disposable flags, local/Postgres host and `_ci`/`_test` database names before migration, but these naming safeguards do **not** prove that the database is isolated. A trusted operator must provision a dedicated disposable instance and verify its target before running migrations.
+- NEEDS ME: disposable isolated PostgreSQL runner and successful test/build/audit evidence; historical secret rotation; owner-approved plan prices; reviewed country tax rules; Paddle sandbox, Railway/private S3/email and privacy/legal acceptance. No live supplier transfers or subscription billing authorized.
+- No code tests, PR merges, production deployments or payments were executed during this verification run. All five phases remain unverified.
