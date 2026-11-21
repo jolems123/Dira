@@ -4,7 +4,7 @@ export function safeAttachmentName(filename: string): string {
     .replace(/\.\./g, '_')
     // Unicode format controls can reverse or hide extensions in file dialogs.
     .replace(/[\u00AD\u034F\u061C\u180E\u200B-\u200F\u2028-\u202E\u2060-\u206F\uFE00-\uFE0F\uFEFF\uFFF9-\uFFFB\u{E0000}-\u{E007F}\u{E0100}-\u{E01EF}]/gu, '')
-    .replace(/["\\\\\r\n:\/\x00-\x1f\x7f-\x9f]+/g, '_')
+    .replace(/["\\\\\r\n:\/\x00-\x1f\x7f-\x9f\u2044\u2215\uFF0F\uFF3C]+/gu, '_')
     .replace(/^[._\s]+|[._\s]+$/g, '')
     .slice(0, 180)
     // Truncation can expose a trailing dot or space that was not trailing before.
