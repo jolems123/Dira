@@ -55,6 +55,12 @@ describe('document response filename safety', () => {
     expect(Buffer.byteLength(result, 'utf8')).toBeLessThanOrEqual(255);
     expect(result).not.toContain('\uFFFD');
   });
+  it('keeps the UTF-8 byte ceiling when prefixing a reserved Windows basename', () => {
+    const result = safeAttachmentName('CON.' + 'a'.repeat(251));
+    expect(result.startsWith('_CON.')).toBe(true);
+    expect(Buffer.byteLength(result, 'utf8')).toBeLessThanOrEqual(255);
+  });
+
   it('removes unpaired UTF-16 surrogates from response filenames', () => {
     expect(safeAttachmentName('report' + String.fromCharCode(0xD800) + '.pdf')).toBe('report.pdf');
     expect(safeAttachmentName('report' + String.fromCharCode(0xDC00) + '.pdf')).toBe('report.pdf');
