@@ -44,5 +44,9 @@ describe('document response filename safety', () => {
     expect(result).not.toContain('\uFFFD');
     expect(Array.from(result)).toHaveLength(180);
   });
-
+  it('limits UTF-8 bytes as well as Unicode code points', () => {
+    const result = safeAttachmentName('😀'.repeat(100) + '.pdf');
+    expect(Buffer.byteLength(result, 'utf8')).toBeLessThanOrEqual(255);
+    expect(result).not.toContain('\uFFFD');
+  });
 });
