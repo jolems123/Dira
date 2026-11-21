@@ -2,9 +2,9 @@
 export function safeAttachmentName(filename: string): string {
   // Normalize compatibility glyphs before path and device-name checks.
   // Preserve explicit dot-lookalike neutralization before NFKC maps them to dots.
-  const normalized = filename.replace(/[\\u2024\\uFE52\\uFF0E]/gu, '_').normalize('NFKC');
+  const normalized = filename.replace(/[\u2024\uFE52\uFF0E]/gu, '_').normalize('NFKC');
   const safe = normalized
-    .replace(/\\.\\./g, '_')
+    .replace(/\.\./g, '_')
     // Dot lookalikes can disguise a file's true extension in download dialogs.
     .replace(/[\u2024\uFE52\uFF0E]/gu, '_')
     // Unicode format controls can reverse or hide extensions in file dialogs.
