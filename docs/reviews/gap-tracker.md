@@ -2186,3 +2186,10 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Rechecked branch ancestry against main: `jolems123-patch-1` behind 10/ahead 0; `uganda-currency` behind 0/ahead 0. Both have no unique commits, but connector has no branch-ref deletion action; leave intact until a supported delete is available.
 - NEEDS ME: non-GitHub independent test runner and disposable PostgreSQL; historical credential rotation; jurisdiction-reviewed tax rules; approved plan prices; Paddle sandbox credentials and webhook verification; Railway/private S3/email configuration; privacy/legal review. No live supplier transfers or subscription billing authorized.
 - All five phases remain OPEN/IN PROGRESS; no merge, production deployment or passing tests claimed in this run.
+
+## 2026-11-21 17:44 EAT — reserved filename byte ceiling
+- Read README.md, docs/POSITIONING.md, this tracker, filename sanitizer and its tests. Open PR search returned no results (not proof PR #3/#4 are closed); direct PR status should be checked before any merge.
+- Found that prefixing a reserved Windows basename (e.g. CON.) with underscore could produce 256 UTF-8 bytes after the sanitizer had enforced a 255-byte ceiling. Committed regression test first (`321dc18`), then fixed the sanitizer to trim Unicode code points before prefixing (`45a96f1`). **Neither compilation nor regression execution was independently established.** No merge or deployment.
+- Historical Actions run `44269279647` still reports job `134681509483` completed/failure with missing steps/log URL. Did not start paid GitHub Actions.
+- Branch compare: `jolems123-patch-1` ahead 0/behind 10; `uganda-currency` ahead 0/behind 0. No branch deletion tool available.
+- **NEEDS ME:** independent offline test runner with disposable PostgreSQL for tenant isolation, approvals and regression suites; rotate any historical credentials; jurisdiction-reviewed tax profiles; owner-approved subscription prices; Paddle sandbox webhook evidence; Railway/private storage/email; legal/privacy sign-off. Supplier payments remain record-only, live subscriptions disabled. All five phases remain unverified and unmerged.
