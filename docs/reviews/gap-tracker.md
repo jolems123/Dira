@@ -2118,3 +2118,10 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Fresh compare: `jolems123-patch-1` 0 ahead/10 behind `main`, `uganda-currency` identical to `main`; no supported branch deletion action found.
 - NEEDS ME: dedicated disposable PostgreSQL and independent test runner, security tenant/approval verification, historical credential rotation, jurisdiction-reviewed tax settings, owner-approved prices, Paddle sandbox, Railway/private storage/email and privacy/legal acceptance. No supplier transfers or live subscription billing.
 - No application changes or passing tests in this run; all five phases remain blocked from certification.
+
+## 2026-11-21 07:48 EAT security engineering and release gates
+- Re-read README, POSITIONING, this tracker, security filename sanitizer/tests, and procurement-rules; open PR search returned #3 and #4. Security PR remains unverified and global finance remains unintegrated in legacy VAT/precision calculations.
+- Regression test committed first (`d6f36cf`) for U+2024, U+FE52 and U+FF0E Unicode dot lookalikes in download filenames; sanitizer fix committed next (`e82350e`) to replace them with underscores. These changes are **not verified by executed tests**; they do not resolve tenant isolation or approval gates.
+- Historical Actions run `44269279647` job `134681509483` remains completed/failure with null steps/log URL. No GitHub-hosted CI rerun (billing prohibition). Failure cause unknown.
+- Fresh ancestry: `jolems123-patch-1` 0 ahead / 10 behind main; `uganda-currency` identical to main. Neither deleted: no supported branch deletion action.
+- **NEEDS ME:** independent disposable PostgreSQL verification and security/approval/tenant tests; historical secret rotation; jurisdiction-reviewed tax rules; approved subscription prices; Paddle sandbox-only configuration; Railway/private S3/email; privacy/legal acceptance. No PR merged or deployed. No supplier fund movement or live subscription billing authorized. All five phases remain incomplete.
