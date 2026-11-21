@@ -2110,3 +2110,11 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Current head `afdecdd2a95a8e6ec09bf0fa5b250a739f931432` has no associated PR-triggered workflow runs returned. Historical run `44269279647` still reports job `134681509483` completed/failure with null steps and logs. Do not rerun GitHub-hosted CI while billing is unavailable; use isolated/offline verification.
 - Open PR search returned #3 and #4. Neither is certified for merge. Fresh compare: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` identical to main. Both deletions remain blocked by absent connector delete-ref action.
 - NEEDS ME: independent disposable-PostgreSQL runner and passing security/tenant/approval checks; historical secret rotation; reviewed country tax rules; final subscription prices; Paddle sandbox credentials; Railway/private S3/email and legal/privacy sign-off. Supplier payments stay record-only and live subscription billing stays disabled.
+
+## 2026-11-21 06:40 EAT release gate recheck
+- Re-read README, POSITIONING, tracker, procurement-rules and document-response source/tests. Legacy totals still default to Uganda VAT 18% and 2 decimals; international finance is not integrated into these paths.
+- Historical Actions run `44269279647` job `134681509483` remains completed/failure with `steps=null` and `logs_url=null`; no application failure diagnosis is possible. GitHub-hosted CI was not restarted because owner prohibits paid CI. Local `git ls-remote` failed DNS resolution for github.com; independent execution remains unavailable here.
+- GitHub open-PR search returned no results, but direct changed-file listings for PR #3 and #4 were accessible; this does not establish merge eligibility. No merge performed.
+- Fresh compare: `jolems123-patch-1` 0 ahead/10 behind `main`, `uganda-currency` identical to `main`; no supported branch deletion action found.
+- NEEDS ME: dedicated disposable PostgreSQL and independent test runner, security tenant/approval verification, historical credential rotation, jurisdiction-reviewed tax settings, owner-approved prices, Paddle sandbox, Railway/private storage/email and privacy/legal acceptance. No supplier transfers or live subscription billing.
+- No application changes or passing tests in this run; all five phases remain blocked from certification.
