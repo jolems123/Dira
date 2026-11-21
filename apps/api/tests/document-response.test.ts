@@ -56,8 +56,8 @@ describe('document response filename safety', () => {
     expect(result).not.toContain('\uFFFD');
   });
   it('removes unpaired UTF-16 surrogates from response filenames', () => {
-    expect(safeAttachmentName('report\\uD800.pdf')).toBe('report.pdf');
-    expect(safeAttachmentName('report\\uDC00.pdf')).toBe('report.pdf');
+    expect(safeAttachmentName('report' + String.fromCharCode(0xD800) + '.pdf')).toBe('report.pdf');
+    expect(safeAttachmentName('report' + String.fromCharCode(0xDC00) + '.pdf')).toBe('report.pdf');
     expect(safeAttachmentName('report😀.pdf')).toBe('report😀.pdf');
   });
 
