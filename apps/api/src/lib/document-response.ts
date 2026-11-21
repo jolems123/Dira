@@ -28,7 +28,12 @@ export function safeAttachmentName(filename: string): string {
   }
   limited = limited.replace(/[._\s]+$/g, '');
   // Windows treats these basenames as devices even with an extension.
-  return /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\s*\.|$)/i.test(limited)
-    ? '_' + limited
-    : limited || 'document';
+  if (/^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\s*\.|$)/i.test(limited)) {
+    // Prefixing a reserved basename must not exceed the 255-byte ceiling.
+    while (Buffer.byteLength(limited, 'utf8') > 254) {
+      limited = Array.from(limited).slice(0, -1).join('');
+    }
+    return '_' + limited.replace(/[._\s]+$/g, '');
+  }
+  return limited || 'document';
 }
