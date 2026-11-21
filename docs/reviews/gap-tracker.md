@@ -2137,3 +2137,10 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Regression test committed first (`c4b9f0c`), then sanitizer implementation (`b3c2c5c`): sanitized filenames now respect a 255-byte UTF-8 limit as well as 180 Unicode code points, without splitting surrogate pairs. Tests **not executed**; do not mark verified or merge.
 - Rechecked README, POSITIONING, tracker, PR #3 and PR #4. Both PRs are open and draft. Historical Actions run `44269279647` job `134681509483` is completed/failure with no steps/logs in returned metadata. No GitHub Actions rerun authorized.
 - NEEDS ME: disposable isolated PostgreSQL runner and full test evidence, tenant/approval review, historical secret rotation, country-reviewed taxes, approved plan prices, Paddle sandbox, Railway/private storage/email, and legal/privacy acceptance. No live billing or supplier payments.
+
+
+## 2026-11-21 compatibility filename hardening
+- Tests-first regression `64c4fee` covers fullwidth Windows device basenames, compatibility path separators and dot lookalikes. Implementation `cbca72d` and regex correction `1f7e82b` normalize NFKC before separator/device checks, while neutralizing dot lookalikes first. **No successful test execution evidence**; do not mark FIXED or merge.
+- PR #3 and #4 are open/draft/unmerged (direct PR reads). Historical run `44269279647` job `134681509483` completed FAILURE, with no steps/log URL. No GitHub Actions were started because hosted CI billing is not approved.
+- Branch compare: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` identical to main. Both lack unique commits; no supported delete-ref operation was found.
+- NEEDS ME: independent disposable PostgreSQL test runner, tenant and approval verification, historical secret rotation, reviewed tax rules, approved plan prices, Paddle sandbox, Railway/S3/email and legal/privacy sign-off. Supplier payments remain record-only; live subscriptions remain disabled.
