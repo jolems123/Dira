@@ -36,4 +36,10 @@ describe('active organisation selection without a tenant-bound token', () => {
     expect(selectActiveMembership([{ ...membership('org-a'), role: null as unknown as string }])).toBeUndefined();
   });
 
+  it('rejects control characters inside tenant IDs and roles', () => {
+    expect(selectActiveMembership([membership('org\\na')])).toBeUndefined();
+    expect(selectActiveMembership([membership('org\\u0000a')])).toBeUndefined();
+    expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\\nER' }])).toBeUndefined();
+    expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\\u0000ER' }])).toBeUndefined();
+  });
 });
