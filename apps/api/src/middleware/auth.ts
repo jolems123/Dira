@@ -42,7 +42,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
 
 export function requireRole(...roles: string[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    if (!req.user?.role || !roles.includes(req.user.role)) {
+    if (!req.user?.id || typeof req.user.id !== 'string' || !req.user.id.trim() || !req.user?.organizationId || typeof req.user.organizationId !== 'string' || req.user.organizationId !== req.user.organizationId.trim() || !req.user.role || !roles.includes(req.user.role)) {
       return res.status(403).json({ message: 'Insufficient permissions' });
     }
     return next();
