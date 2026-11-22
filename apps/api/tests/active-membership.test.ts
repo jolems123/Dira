@@ -1,22 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import { selectActiveMembership } from '../src/lib/active-membership';
 
-describe('active organisation selection', () => {
-  it('never selects an inactive membership even if it is first', () => {
-    expect(selectActiveMembership([
-      { organizationId: 'old', role: 'OWNER', status: 'SUSPENDED', createdAt: new Date('2020-01-01') },
-      { organizationId: 'current', role: 'BUYER', status: 'ACTIVE', createdAt: new Date('2021-01-01') },
-    ])?.organizationId).toBe('current');
+describe('active organisation selection without a tenant-bound token', () => {
+  const membership = (organizationId: string, status = 'ACTIVE', createdAt = new Date('2021-01-01')) =>
+    ({ organizationId, role: 'BUYER', status, createdAt });
+
+  it('uses the sole active membership and ignores suspended memberships', () => {
+    expect(selectActiveMembership([membership('old', 'SUSPENDED'), membership('current')])?.organizationId).toBe('current');
   });
-  it('returns no membership when none is active', () => {
-    expect(selectActiveMembership([{ organizationId: 'x', role: 'OWNER', status: 'INVITED', createdAt: new Date() }])).toBeUndefined();
+
+  it('rejects absent active memberships', () => {
+    expect(selectActiveMembership([membership('x', 'INVITED')])).toBeUndefined();
+    expect(selectActiveMembership([])).toBeUndefined();
   });
-  it('selects deterministically by creation time and id', () => {
-    const memberships = [
-      { organizationId: 'b', role: 'BUYER', status: 'ACTIVE', createdAt: new Date('2021-01-01') },
-      { organizationId: 'a', role: 'OWNER', status: 'ACTIVE', createdAt: new Date('2021-01-01') },
-    ];
-    expect(selectActiveMembership(memberships)?.organizationId).toBe('a');
-    expect(selectActiveMembership([...memberships].reverse())?.organizationId).toBe('a');
+
+  it('fails closed for multiple active organisations regardless of order', () => {
+    const memberships = [membership('a'), membership('b')];
+    expect(selectActiveMembership(memberships)).toBeUndefined();
+    expect(selectActiveMembership([...memberships].reverse())).toBeUndefined();
+  });
+
+  it('rejects malformed sole active membership metadata', () => {
+    expect(selectActiveMembership([membership('')])).toBeUndefined();
+    expect(selectActiveMembership([membership('x', 'ACTIVE', new Date(NaN))])).toBeUndefined();
   });
 });
