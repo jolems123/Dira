@@ -2309,3 +2309,10 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Ancestry rechecked against main: `jolems123-patch-1` 0 ahead / 10 behind; `uganda-currency` identical. Connector has no supported branch deletion, so both remain.
 - **NEEDS ME:** independent disposable PostgreSQL runner and actual verification logs, endpoint-level tenant/approval testing, historical credential rotation, country-reviewed tax policies, final pricing approval, Paddle sandbox credentials, Railway/private storage/email checks, and privacy/legal acceptance. Supplier payments remain recording-only; live subscription billing is not approved.
 - All five phases remain **OPEN / uncertified**. No merge or deployment attempted; no passing tests claimed.
+
+## 2026-11-23 01:45 EAT — canonical user identity guard
+- Read README, POSITIONING and tracker; directly fetched PR #3 and #4: both open, draft and unmerged. Historical Actions run 44269279647 still has failed checks job 134681509483 without steps/log URL. No GitHub-hosted CI triggered.
+- Regression-first commit `ef988cf4` adds role-middleware tests for whitespace-padded and malformed user IDs; fix `3346651a` denies noncanonical user IDs. **Tests were not executed**; this is not tenant-isolation certification.
+- Rechecked main ancestry: `jolems123-patch-1` ahead 0/behind 10, `uganda-currency` ahead 0/behind 0. No supported branch-deletion action; neither deleted.
+- **NEEDS ME:** independent disposable PostgreSQL runner with captured tests/typecheck/build/security audit evidence; complete endpoint tenant isolation and approval review; historical credential rotation; jurisdiction-reviewed tax/currency profiles; approved plan prices; Paddle sandbox credentials; Railway/private storage/email verification and legal/privacy acceptance. Keep supplier payments record-only and live subscription billing disabled.
+- **Release decision:** all five phases uncertified; no merges, deployment or passing test claims.
