@@ -19,3 +19,8 @@ test('rejects conflicting active memberships within the same organisation', () =
 test('rejects malformed membership timestamps', () => {
   assert.equal(selectActiveMembership([{ ...member('org-a'), createdAt: new Date(NaN) }]), undefined);
 });
+
+test('rejects whitespace-only and malformed organisation identifiers', () => {
+  assert.equal(selectActiveMembership([member('   ')]), undefined);
+  assert.equal(selectActiveMembership([{ ...member('org-a'), organizationId: 42 as unknown as string }]), undefined);
+});
