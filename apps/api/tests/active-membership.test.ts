@@ -29,4 +29,11 @@ describe('active organisation selection without a tenant-bound token', () => {
     expect(selectActiveMembership([membership('')])).toBeUndefined();
     expect(selectActiveMembership([membership('x', 'ACTIVE', new Date(NaN))])).toBeUndefined();
   });
+  it('rejects missing, blank or whitespace-padded membership roles', () => {
+    expect(selectActiveMembership([{ ...membership('org-a'), role: '' }])).toBeUndefined();
+    expect(selectActiveMembership([{ ...membership('org-a'), role: ' BUYER' }])).toBeUndefined();
+    expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUYER ' }])).toBeUndefined();
+    expect(selectActiveMembership([{ ...membership('org-a'), role: null as unknown as string }])).toBeUndefined();
+  });
+
 });
