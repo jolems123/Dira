@@ -2244,3 +2244,8 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Rechecked ancestry: `jolems123-patch-1` 0 ahead/10 behind main; `uganda-currency` 0 ahead/0 behind. No supported branch deletion action identified; neither deleted.
 - **NEEDS ME:** independent local/disposable PostgreSQL test execution and logs, endpoint-by-endpoint tenant/security review, historical credential rotation, approved jurisdiction tax profiles and plan prices, Paddle sandbox only, Railway/S3/email configuration and legal/privacy acceptance. No live subscription billing or supplier payment movement.
 - **Release decision:** all five phases remain unverified; no merge or production deployment permitted yet.
+
+## 2026-11-22 latest independent release recheck
+- Re-read README, positioning and this tracker; GitHub PR search and direct PR reads confirm security #3 and finance #4 remain open, draft, unmerged. Security head `4ecf19c3f0fddd082f962c01bcacbd007db68c62`; current-head PR-triggered Actions lookup returned zero runs, **not** a passing result. No paid GitHub Actions rerun requested.
+- Main ancestry rechecked through compare API: `jolems123-patch-1` is 0 ahead/10 behind; `uganda-currency` is identical (0/0). Both have no unique commits, but deletion remains unavailable through the supported connector; no deletion performed.
+- **NEEDS ME:** independent disposable PostgreSQL runner and retained verification logs; cross-tenant and approval policy audit; historical secret rotation; approved country taxes and plan pricing; Paddle sandbox credentials; Railway/private S3/email/legal acceptance. Until these exist, keep both PRs draft and all five phases uncertified. No live supplier payments or live subscription billing.
