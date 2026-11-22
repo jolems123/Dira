@@ -2300,3 +2300,12 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Historical Actions run `44269279647` still has failed `checks` job `134681509483`, with no step diagnostics returned. No paid CI rerun initiated. Investigate with an independent runner; verify all role-protected routes, tenant isolation and database permissions.
 - Main ancestry independently reconfirmed: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` 0 ahead/0 behind. No supported branch deletion action was found, so neither was deleted.
 - **NEEDS ME:** independent disposable PostgreSQL test runner and saved test/typecheck/build/audit output; route-level security review; historical credential rotation; approved jurisdiction-specific tax/currency policies and plan prices; Paddle sandbox credentials; Railway/private storage/email configuration; legal/privacy acceptance. Keep all five phases uncertified, draft PRs unmerged, live billing disabled and supplier payments record-only.
+
+
+## 2026-11-23 security engineering checkpoint
+- Read main README, security-branch POSITIONING and tracker, and inspected open-PR search. Search returned no records; it is inconclusive, so PR #3/#4 merge status and reviews still require direct verification.
+- Regression-first commit `ef91d54` covers empty, missing and whitespace-padded active membership roles; implementation commit `10b1fa4` rejects malformed roles before assigning tenant context. **Tests committed, not executed or verified**. This is an additional fail-closed safeguard, not proof of endpoint-level tenant isolation.
+- Historical Actions run `44269279647`: checks job `134681509483` completed with failure; steps endpoint returned empty array. No root cause established; no paid GitHub-hosted CI triggered.
+- Ancestry rechecked against main: `jolems123-patch-1` 0 ahead / 10 behind; `uganda-currency` identical. Connector has no supported branch deletion, so both remain.
+- **NEEDS ME:** independent disposable PostgreSQL runner and actual verification logs, endpoint-level tenant/approval testing, historical credential rotation, country-reviewed tax policies, final pricing approval, Paddle sandbox credentials, Railway/private storage/email checks, and privacy/legal acceptance. Supplier payments remain recording-only; live subscription billing is not approved.
+- All five phases remain **OPEN / uncertified**. No merge or deployment attempted; no passing tests claimed.
