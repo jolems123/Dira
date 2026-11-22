@@ -2256,3 +2256,10 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - GitHub Actions: PR-triggered workflow lookup for earlier head `4ecf19c3` returned no runs; historical run `44269279647` checks job `134681509483` remains failed with unavailable logs/steps. No paid workflow rerun initiated.
 - Branch compare against main: `jolems123-patch-1` ahead 0/behind 10; `uganda-currency` ahead 0/behind 0. No supported deletion action; left intact.
 - **NEEDS ME:** independent test runner/disposable PostgreSQL, retained test/typecheck/build/dependency audit logs and security review; historical credential rotation; jurisdiction-approved tax profiles; approved plan pricing; Paddle sandbox configuration; Railway/private storage/email verification and privacy/legal acceptance. Keep supplier payments record-only and live subscriptions disabled. All five phases unmerged/uncertified.
+
+## 2026-11-22 18:45 EAT independent release recheck
+- Re-read README, positioning and tracker on security branch. GitHub issue search `repo:jolems123/Dira is:pr is:open` returned no records; this search is **inconclusive**, not evidence PR #3/#4 closed. Direct PR verification remains required.
+- Historical workflow run `44269279647` still reports job `134681509483` completed/failure with `steps=null` and `logs_url=null`. Failure cause remains unknown. No paid GitHub Actions workflow was started.
+- Fresh main ancestry comparison: `jolems123-patch-1` behind by 10, ahead by 0; `uganda-currency` identical (0 ahead/0 behind). Neither branch was deleted; no supported delete-ref tool exposed.
+- **NEEDS ME:** independent disposable PostgreSQL runner and execution logs; direct PR review/status and required approvals; historical credential rotation; reviewed tax jurisdictions; owner-approved subscription prices; Paddle sandbox credentials only; Railway/private storage/email and privacy/legal acceptance. No supplier funds movement or live subscription billing.
+- No source changes, test execution, PR merge or deployment in this recheck; all five phases remain unverified.
