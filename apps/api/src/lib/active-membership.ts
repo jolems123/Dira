@@ -8,7 +8,7 @@ export function selectActiveMembership<T extends { organizationId: string; statu
   const active = memberships.filter((membership) => membership.status === 'ACTIVE');
   if (active.length !== 1) return undefined;
   const only = active[0];
-  if (typeof only.organizationId !== 'string' || !only.organizationId.trim() || !(only.createdAt instanceof Date) || !Number.isFinite(only.createdAt.getTime())) {
+  if (typeof only.organizationId !== 'string' || !only.organizationId.trim() || only.organizationId !== only.organizationId.trim() || !(only.createdAt instanceof Date) || !Number.isFinite(only.createdAt.getTime())) {
     return undefined;
   }
   return only;
