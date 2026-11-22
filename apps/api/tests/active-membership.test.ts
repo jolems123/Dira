@@ -20,6 +20,11 @@ describe('active organisation selection without a tenant-bound token', () => {
     expect(selectActiveMembership([...memberships].reverse())).toBeUndefined();
   });
 
+  it('rejects organisation IDs with surrounding whitespace rather than using an ambiguous tenant key', () => {
+    expect(selectActiveMembership([membership(' org-a')])).toBeUndefined();
+    expect(selectActiveMembership([membership('org-a ')] )).toBeUndefined();
+  });
+
   it('rejects malformed sole active membership metadata', () => {
     expect(selectActiveMembership([membership('')])).toBeUndefined();
     expect(selectActiveMembership([membership('x', 'ACTIVE', new Date(NaN))])).toBeUndefined();
