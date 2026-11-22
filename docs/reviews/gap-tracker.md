@@ -27,6 +27,15 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - uganda-currency: identical to main; deletion pending unsupported connector action.
 - fix/dira-security: working branch. Never merge to main automatically.
 
+## 2026-11-22 verification and NEEDS ME refresh
+- Read `README.md` on main, `docs/POSITIONING.md` and this tracker on `fix/dira-security`; positioning is not present on main, so global claims remain unmerged.
+- Fresh PR metadata: security #3 head `ab3209e0bd1119f5c4a86aa9cd533e519a373dcd` (693 commits, 156 files) and global finance #4 head `92016df6d1e72805e5b5879f4e30aca67f1fe8bf` (6 commits, 2 files) are both **open, draft, unmerged**. GitHub reports mergeable=true but this does not establish passing tests, approvals, or release readiness.
+- PR-head Actions lookup for `ab3209e` returned **zero pull-request-triggered workflow runs**; this is not a successful check. Earlier historical workflow failures with unavailable steps/logs remain unresolved. Do not trigger paid GitHub-hosted CI while billing is unavailable.
+- Reviewed `apps/api/src/middleware/auth.ts`: the middleware selects an active membership from the database, rather than binding a requested organisation to an explicit token claim. Verify cross-organisation switching and tenant-route scoping before declaring isolation; this observation is not proof of an exploit.
+- Branch compare against main reconfirmed `jolems123-patch-1` 0 ahead/10 behind and `uganda-currency` identical (0/0). No supported branch-delete action; no deletion attempted.
+- **NEEDS ME:** provide independent disposable PostgreSQL verification environment and actual command logs; security review of all tenant/supplier endpoints and approval thresholds; rotate any historical credentials; approve jurisdictional tax profiles and published plan prices; provide Paddle **sandbox** credentials only; confirm Railway, private storage, email delivery, privacy/legal acceptance. Supplier payments remain records only; no live Paddle billing approval.
+- **Release decision:** no phase is certified; do not mark any item FIXED or merge either draft PR without test evidence and required review/protection gates.
+
 ## 2026-11-08 security work log
 - `fix/dira-security`: positioning and tracker created; production environment validator; source-code database fallback sanitized (old history still contains password-like values; rotate any reused credentials); JWT issuer/audience/algorithm enforcement; refresh credential compare-and-swap and replay revocation; self-approval request gate; opt-in dev seed with hard production refusal; sanitized .env.example and local Docker Compose credentials; README updated; PR CI workflow. **Do not mark verified until CI completes successfully**.
 - Refresh sessions presently have no durable per-device session-family identifier; replay handling revokes all user refresh credentials. Stronger per-session isolation is future work.
