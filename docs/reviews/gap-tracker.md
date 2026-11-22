@@ -2316,3 +2316,12 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Rechecked main ancestry: `jolems123-patch-1` ahead 0/behind 10, `uganda-currency` ahead 0/behind 0. No supported branch-deletion action; neither deleted.
 - **NEEDS ME:** independent disposable PostgreSQL runner with captured tests/typecheck/build/security audit evidence; complete endpoint tenant isolation and approval review; historical credential rotation; jurisdiction-reviewed tax/currency profiles; approved plan prices; Paddle sandbox credentials; Railway/private storage/email verification and legal/privacy acceptance. Keep supplier payments record-only and live subscription billing disabled.
 - **Release decision:** all five phases uncertified; no merges, deployment or passing test claims.
+
+
+## 2026-11-23 security control-character hardening (automation checkpoint)
+- Read README, positioning, tracker and queried open PRs. PR search returned security #3 but did not return finance #4; this is inconclusive for #4, which needs direct status verification. No merge attempted.
+- Tests-first commit `ce0d9948` adds rejection cases for embedded LF/NUL in organisation IDs and roles; implementation commit `49aa0d08` rejects ASCII control characters (U+0000–U+001F, U+007F) in the sole active membership. This is defense in depth against malformed tenant and role metadata, **not** a substitute for endpoint-level isolation testing. Tests committed, **not executed**.
+- New head `49aa0d08` returned zero PR-triggered workflow runs; historical Actions run `44269279647` still has failed checks job `134681509483` with null steps/logs. No paid Actions jobs were initiated. Independent local verification remains blocked without an available runner/disposable PostgreSQL evidence.
+- Fresh main comparisons: `jolems123-patch-1` 0 ahead/10 behind; `uganda-currency` identical to main. No supported branch-delete action; neither deleted.
+- **NEEDS ME:** independent disposable PostgreSQL and local verification results; review tenant/supplier endpoint isolation, PO approvals and invoice controls; rotate historical credentials; approve country-specific taxes and plan pricing; configure Paddle sandbox only, Railway/private S3/email; legal/privacy acceptance. Do not activate supplier disbursements or live subscription billing.
+- **Release decision:** all five phases remain uncertified; no PR merged, no production deployment, no passing test asserted.
