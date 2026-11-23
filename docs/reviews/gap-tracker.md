@@ -2363,3 +2363,12 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Fresh ancestry: `jolems123-patch-1` ahead 0 / behind 10 against main, `uganda-currency` ahead 0 / behind 0. Both have no unique commits; no supported delete-ref action exposed, so neither deleted.
 - **NEEDS ME:** isolated disposable PostgreSQL test runner and captured tests/typecheck/build/audit output; independent endpoint tenant/supplier and approvals verification; historical secret rotation; reviewed tax/currency jurisdictions; owner-approved plan prices; Paddle sandbox configuration; Railway/private storage/mail verification; privacy/legal acceptance. Keep supplier payments record-only and live subscription billing off.
 - **Gate:** all five phases OPEN and uncertified. No application code, passing tests, merges, production deployments or paid CI in this checkpoint. Further changes should prioritize executable verification and substantive route fixes, not speculative security claims.
+
+
+## 2026-11-23 09:45 EAT — evidence checkpoint
+- Re-read main README, security-branch positioning and this tracker; open-PR search returned security #3 and international-finance #4. Both remain unverified and must not be merged on search results alone.
+- Historical Actions run 44269279647: checks job 134681509483 completed with conclusion FAILURE; job metadata exposes no steps or logs URL. Root cause not established. Do not rerun GitHub-hosted Actions while billing is unavailable.
+- Reviewed procurement-rules.ts: calculateTotals and resolveTax still default to Uganda VAT 18%, and monetary calculations round to two decimal places. Phase 2 helper remains opt-in and not route-integrated; no global tax/precision certification.
+- Fresh compare: jolems123-patch-1 0 ahead/10 behind main; uganda-currency 0 ahead/0 behind main. Neither deleted because no supported deletion action is exposed.
+- No executable test evidence, isolated PostgreSQL environment, reviews, or merge gate clearance obtained this run. All five phases remain OPEN/IN PROGRESS, not FIXED. No code changes or merges.
+- NEEDS ME: disposable PostgreSQL test environment and offline test output; owner-approved jurisdiction tax policy and published prices; Paddle sandbox only; historic credential rotation; Railway/private storage/email setup; legal/privacy acceptance. Supplier payments remain records only and live subscription billing is not approved.
