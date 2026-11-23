@@ -22,4 +22,11 @@ describe('canonical authenticated identities', () => {
       { id: 'u1', organizationId: 'org1', role: 'BUYER\u0000' },
     ]) expect(isCanonicalAuthContext(bad)).toBe(false);
   });
+  it('rejects Unicode bidi and invisible format controls in identity and role context', () => {
+    for (const marker of ['\u202e', '\u202d', '\u2066', '\u2069', '\u200b', '\ufeff']) {
+      expect(isCanonicalAuthIdentity('org' + marker + '1')).toBe(false);
+      expect(isCanonicalAuthContext({ id: 'u1', organizationId: 'org1', role: 'BUY' + marker + 'ER' })).toBe(false);
+    }
+  });
+
 });
