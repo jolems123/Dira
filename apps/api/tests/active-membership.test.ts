@@ -42,4 +42,8 @@ describe('active organisation selection without a tenant-bound token', () => {
     expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\\nER' }])).toBeUndefined();
     expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\\u0000ER' }])).toBeUndefined();
   });
+  it('rejects invisible Unicode format controls in organisation and role identifiers', () => {
+    expect(selectActiveMembership([membership('org\\u202Ea')])).toBeUndefined();
+    expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\\u200BER' }])).toBeUndefined();
+  });
 });
