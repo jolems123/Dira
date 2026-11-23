@@ -47,8 +47,8 @@ describe('active organisation selection without a tenant-bound token', () => {
     expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\u200BER' }])).toBeUndefined();
   });
   it('rejects Unicode line separators and C1 control characters in tenant and role metadata', () => {
-    expect(selectActiveMembership([membership('org\\u0085a')])).toBeUndefined();
-    expect(selectActiveMembership([membership('org\\u2028a')])).toBeUndefined();
-    expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\\u2029ER' }])).toBeUndefined();
+    expect(selectActiveMembership([membership('org\u0085a')])).toBeUndefined();
+    expect(selectActiveMembership([membership('org\u2028a')])).toBeUndefined();
+    expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\u2029ER' }])).toBeUndefined();
   });
 });
