@@ -2380,3 +2380,11 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - **Verification status: IN PROGRESS.** These tests are committed but have not been executed; no passing checks or security certification is claimed. Review all identity validation call sites and tenant endpoint boundaries before merging PR #3.
 - Rechecked ancestry: `jolems123-patch-1` is 0 ahead / 10 behind `main`; `uganda-currency` is identical to `main`. Connector has no supported delete-ref action, so both remain.
 - **NEEDS ME:** isolated disposable PostgreSQL test runner and independent verification logs; recover usable historical Actions diagnostics without launching paid workflows; rotate historical credentials; reviewed country tax profiles; final subscription prices; Paddle sandbox, Railway/private S3/email, and legal/privacy acceptance. No live billing or supplier fund movement authorised.
+
+## 2026-11-23 security tenant-context hardening (latest)
+- Read README.md, docs/POSITIONING.md, tracker, PR #3 and PR #4. Both PRs remain open/draft/unmerged; no approval or successful test evidence.
+- Tests-first commit `d82e521` covers malformed authenticated role and organisation context. Helper commit `170c1b4` validates all three context fields. Middleware commit `bc78db4` rejects noncanonical JWT subject before database lookup and noncanonical membership role/organisation before exposing a protected request context. These commits are **not executed or certified**.
+- Historical Actions run `44269279647` still has completed/failed checks job `134681509483`, no steps or logs in the jobs response. Root cause remains unknown; no paid Actions run initiated.
+- Fresh main comparisons: `jolems123-patch-1` 0 ahead / 10 behind; `uganda-currency` identical. No supported branch deletion.
+- **NEEDS ME:** isolated disposable PostgreSQL runner with test logs; endpoint tenant-isolation and approval-limit review; historic secret rotation; approved country tax policies, plan prices, Paddle sandbox credentials; Railway/private storage/email verification; privacy/legal acceptance. Do not merge before required checks/reviews/branch protection; no live subscription billing or supplier fund movement.
+- All five phases remain uncertified. International-finance PR #4 still requires route integration and verified multi-currency/tax tests.
