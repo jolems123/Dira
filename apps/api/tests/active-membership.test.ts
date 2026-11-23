@@ -37,13 +37,13 @@ describe('active organisation selection without a tenant-bound token', () => {
   });
 
   it('rejects control characters inside tenant IDs and roles', () => {
-    expect(selectActiveMembership([membership('org\\na')])).toBeUndefined();
-    expect(selectActiveMembership([membership('org\\u0000a')])).toBeUndefined();
-    expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\\nER' }])).toBeUndefined();
-    expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\\u0000ER' }])).toBeUndefined();
+    expect(selectActiveMembership([membership('org\na')])).toBeUndefined();
+    expect(selectActiveMembership([membership('org\u0000a')])).toBeUndefined();
+    expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\nER' }])).toBeUndefined();
+    expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\u0000ER' }])).toBeUndefined();
   });
   it('rejects invisible Unicode format controls in organisation and role identifiers', () => {
-    expect(selectActiveMembership([membership('org\\u202Ea')])).toBeUndefined();
-    expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\\u200BER' }])).toBeUndefined();
+    expect(selectActiveMembership([membership('org\u202Ea')])).toBeUndefined();
+    expect(selectActiveMembership([{ ...membership('org-a'), role: 'BUY\u200BER' }])).toBeUndefined();
   });
 });
