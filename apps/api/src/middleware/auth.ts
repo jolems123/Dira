@@ -5,6 +5,7 @@ import { selectActiveMembership } from '../lib/active-membership';
 import { mayAccessProtectedRoute } from '../lib/access-eligibility';
 import { prisma } from '../db';
 import { env } from '../lib/env';
+import { isCanonicalAuthIdentity } from '../lib/canonical-auth-identity';
 
 export type AuthenticatedRequest = Request & {
   user?: { id: string; organizationId?: string; role?: string };
@@ -42,7 +43,7 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
 
 export function requireRole(...roles: string[]) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    if (!req.user?.id || typeof req.user.id !== 'string' || req.user.id !== req.user.id.trim() || !req.user?.organizationId || typeof req.user.organizationId !== 'string' || req.user.organizationId !== req.user.organizationId.trim() || !req.user.role || !roles.includes(req.user.role)) {
+    if (!isCanonicalAuthIdentity(req.user?.id) || !isCanonicalAuthIdentity(req.user?.organizationId) || !req.user.role || !roles.includes(req.user.role)) {
       return res.status(403).json({ message: 'Insufficient permissions' });
     }
     return next();
