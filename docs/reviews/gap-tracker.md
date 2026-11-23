@@ -2340,3 +2340,10 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Fresh ancestry: `jolems123-patch-1` 0 ahead/10 behind main; `uganda-currency` 0 ahead/0 behind. Neither deleted: no supported Git ref deletion action.
 - **NEEDS ME:** independent disposable PostgreSQL and local test/typecheck/build/audit logs; route-level tenant/supplier and approvals tests; rotate any historical secrets; jurisdiction-reviewed tax and currency policies, approved plan pricing, Paddle sandbox credentials, Railway/private storage/mail evidence, legal/privacy approval. No live subscription billing or supplier fund movement.
 - **Gate:** all five phases remain OPEN. This checkpoint did not execute tests, change application logic, merge or deploy. Prioritize executable verification over further incremental guard-only edits.
+
+## 2026-11-23 verification checkpoint (05:41 Africa/Kampala)
+- Re-read main README, security-branch positioning and tracker; directly inspected security-branch procurement rules. The current `resolveTax` and `calculateTotals` still silently apply 18% Uganda VAT when tax is absent and round all currencies to two decimals. No global-finance route certification is possible without explicit jurisdiction and currency minor-unit policy plus route-level tests.
+- Historical Actions run `44269279647`: job `134681509483` remains completed/failure, with `steps=null` and `logs_url=null`; root cause unverified. No paid workflow rerun requested.
+- Fresh GitHub comparisons: `jolems123-patch-1` 0 ahead/10 behind main (ancestor); `uganda-currency` identical (0/0). Connector provides no delete-ref operation, so no branch deletion.
+- **NEEDS ME:** isolated PostgreSQL test execution and logs; security tenant/approval review; historical secret rotation; owner-reviewed tax and currency policies; final plan prices; Paddle sandbox; Railway/S3/email; legal/privacy sign-off. Do not enable live subscription billing or supplier transfers.
+- No tests executed, no new application code in this checkpoint, no PR merge, no release certification. Security first; follow with finance integration and independent verification.
