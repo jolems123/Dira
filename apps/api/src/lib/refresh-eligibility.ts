@@ -1,0 +1,19 @@
+/** Only an active account with exactly one active organisation membership may renew a session. */
+export function mayRefreshSession(user: { status: string; emailVerified: boolean; organizationMembers: readonly { id: string }[] } | null): boolean {
+  return user?.status === 'ACTIVE' && user.emailVerified === true && Array.isArray(user.organizationMembers) && user.organizationMembers.length === 1
+    && typeof user.organizationMembers[0]?.id === 'string' && user.organizationMembers[0].id.trim().length > 0;
+}
+
+/** Revoke all active refresh credentials when the account loses renewal eligibility. */
+export async function revokeIneligibleRefreshSessions(
+  db: { refreshToken: { updateMany: (args: {
+    where: { userId: string; revokedAt: null };
+    data: { revokedAt: Date };
+  }) => Promise<{ count: number }> } },
+  userId: string,
+): Promise<void> {
+  await db.refreshToken.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+}

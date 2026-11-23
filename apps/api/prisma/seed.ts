@@ -1,6 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
+if (process.env.NODE_ENV === 'production') {
+  throw new Error('Development seed is forbidden in production');
+}
+if (process.env.DIRA_ALLOW_DEV_SEED !== '1') {
+  throw new Error('Development seed requires explicit DIRA_ALLOW_DEV_SEED=1');
+}
+
 const prisma = new PrismaClient();
 
 async function main() {

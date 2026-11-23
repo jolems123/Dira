@@ -56,7 +56,7 @@ export default function LoginPage() {
           <button disabled={loading} className="w-full rounded-xl bg-navy px-4 py-3 font-medium text-white disabled:opacity-60">{loading ? 'Signing in...' : 'Sign in'}</button>
         </form>
         <p className="mt-6 text-center text-sm text-slate-600">
-          New to Dira? <Link href="/register" className="font-semibold text-navy underline">Create an account</Link>
+          <Link href="/forgot-password" className="font-semibold text-navy underline">Forgot password?</Link> · New to Dira? <Link href="/register" className="font-semibold text-navy underline">Create an account</Link>
         </p>
       </div>
     </main>
