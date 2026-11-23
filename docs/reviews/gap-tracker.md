@@ -2388,3 +2388,12 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Fresh main comparisons: `jolems123-patch-1` 0 ahead / 10 behind; `uganda-currency` identical. No supported branch deletion.
 - **NEEDS ME:** isolated disposable PostgreSQL runner with test logs; endpoint tenant-isolation and approval-limit review; historic secret rotation; approved country tax policies, plan prices, Paddle sandbox credentials; Railway/private storage/email verification; privacy/legal acceptance. Do not merge before required checks/reviews/branch protection; no live subscription billing or supplier fund movement.
 - All five phases remain uncertified. International-finance PR #4 still requires route integration and verified multi-currency/tax tests.
+
+## 2026-11-23 12:46 EAT — release gate revalidation
+- Re-read README, POSITIONING, and tracker from security branch. PR #3 and PR #4 are **open, draft**, with GitHub reporting mergeable=true; mergeability does not establish passing tests, review approval or production readiness.
+- Historical Actions run 44269279647 still reports job 134681509483 completed FAILURE, with no steps or log URL in the job response. Do not rerun GitHub-hosted Actions while billing is unavailable; use independent disposable PostgreSQL and offline/local verification.
+- Re-inspected auth middleware: it validates token subject and selected active membership, but no endpoint-by-endpoint cross-tenant isolation evidence was obtained. Critical tenant and approval gates remain OPEN.
+- Re-inspected procurement-rules: implicit Uganda 18% VAT and two-decimal money rounding persist. PR #4's international helper remains draft and unintegrated. Do not assert global tax compliance.
+- Fresh compare to main: jolems123-patch-1 is 0 ahead/10 behind; uganda-currency 0 ahead/0 behind. No branch-delete action exposed; no deletion attempted.
+- **NEEDS ME:** disposable PostgreSQL runner and executable test logs; approval and tenant-isolation review; rotate historical credentials; jurisdiction-reviewed tax rules and final subscription prices; Paddle sandbox only; Railway, private storage, verified email and legal/privacy sign-off. No live supplier payments or live subscriptions authorized.
+- No executable test, merge, deployment or production acceptance evidence was obtained in this checkpoint; all five phases remain uncertified.
