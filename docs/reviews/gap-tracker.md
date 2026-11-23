@@ -2372,3 +2372,11 @@ Email sender/domain and delivery verification; owner-approved policy for existin
 - Fresh compare: jolems123-patch-1 0 ahead/10 behind main; uganda-currency 0 ahead/0 behind main. Neither deleted because no supported deletion action is exposed.
 - No executable test evidence, isolated PostgreSQL environment, reviews, or merge gate clearance obtained this run. All five phases remain OPEN/IN PROGRESS, not FIXED. No code changes or merges.
 - NEEDS ME: disposable PostgreSQL test environment and offline test output; owner-approved jurisdiction tax policy and published prices; Paddle sandbox only; historic credential rotation; Railway/private storage/email setup; legal/privacy acceptance. Supplier payments remain records only and live subscription billing is not approved.
+
+
+## 2026-11-23 canonical identity regression correction
+- Source review found the character class in `apps/api/src/lib/canonical-auth-identity.ts` contained **doubled backslashes** in the regex literal, so it did not correctly express the intended ASCII control-character range. This was a concrete security bug, not a CI diagnosis.
+- Added failing-first Vitest cases in `apps/api/tests/canonical-auth-identity.test.ts` (commit `656e203`) for NUL, TAB, CR, LF, other C0 controls, DEL, empty/padded values and a valid ID; corrected the regex escape sequences in `a77e80d`.
+- **Verification status: IN PROGRESS.** These tests are committed but have not been executed; no passing checks or security certification is claimed. Review all identity validation call sites and tenant endpoint boundaries before merging PR #3.
+- Rechecked ancestry: `jolems123-patch-1` is 0 ahead / 10 behind `main`; `uganda-currency` is identical to `main`. Connector has no supported delete-ref action, so both remain.
+- **NEEDS ME:** isolated disposable PostgreSQL test runner and independent verification logs; recover usable historical Actions diagnostics without launching paid workflows; rotate historical credentials; reviewed country tax profiles; final subscription prices; Paddle sandbox, Railway/private S3/email, and legal/privacy acceptance. No live billing or supplier fund movement authorised.
